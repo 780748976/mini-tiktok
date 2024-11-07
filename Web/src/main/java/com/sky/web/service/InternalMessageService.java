@@ -17,7 +17,7 @@ public interface InternalMessageService {
     void sendMentionMessage(Long receiverUserId, Long receiverId,
                             Integer receiverType, Long targetId, Long userId);
 
-    void sendSystemMessage(Long receiverId, String message, Long userId);
+    void sendSystemMessage(Long receiverUserId, String message, Long userId);
 
     void sendCommentMessage(Long receiverUserId, Long receiverId,
                             Integer receiverType, Integer targetType, Long targetId, Long userId, String comment);

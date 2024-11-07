@@ -1,9 +1,12 @@
 package com.sky.web.service.impl;
 
+import com.google.gson.Gson;
+import com.sky.common.utils.SseEmitterUtil;
 import com.sky.pojo.constant.InternalMessageSendTypeConstants;
 import com.sky.pojo.constant.InternalMessageTypeConstants;
 import com.sky.pojo.entity.InternalMessage;
 import com.sky.pojo.mapper.InternalMessageMapper;
+import com.sky.pojo.vo.SseVo;
 import com.sky.web.service.InternalMessageService;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +18,8 @@ public class InternalMessageServiceImpl implements InternalMessageService {
 
     @Resource
     private InternalMessageMapper internalMessageMapper;
+    @Resource
+    Gson gson;
 
     /**
      * 发送点赞消息
@@ -31,6 +36,8 @@ public class InternalMessageServiceImpl implements InternalMessageService {
                 .setRead(false)
                 .setCreateTime(LocalDateTime.now());
         internalMessageMapper.insert(internalMessage);
+
+        SseEmitterUtil.sendMessage(receiverUserId.toString(), gson.toJson(new SseVo().setType("like")));
     }
 
     /**
@@ -67,19 +74,23 @@ public class InternalMessageServiceImpl implements InternalMessageService {
                 .setRead(false)
                 .setCreateTime(LocalDateTime.now());
         internalMessageMapper.insert(internalMessage);
+
+        SseEmitterUtil.sendMessage(receiverUserId.toString(), gson.toJson(new SseVo().setType("mention")));
     }
     /**
      * 发送系统消息
      */
     @Override
-    public void sendSystemMessage(Long receiverId, String message, Long userId) {
+    public void sendSystemMessage(Long receiverUserId, String message, Long userId) {
         InternalMessage internalMessage = new InternalMessage()
-                .setReceiverId(receiverId)
+                .setReceiverUserId(receiverUserId)
                 .setType(InternalMessageTypeConstants.SYSTEM)
                 .setContent(message)
                 .setRead(false)
                 .setCreateTime(LocalDateTime.now());
         internalMessageMapper.insert(internalMessage);
+
+        SseEmitterUtil.sendMessage(receiverUserId.toString(), gson.toJson(new SseVo().setType("system")));
     }
 
     /**
@@ -100,6 +111,8 @@ public class InternalMessageServiceImpl implements InternalMessageService {
                 .setRead(false)
                 .setCreateTime(LocalDateTime.now());
         internalMessageMapper.insert(internalMessage);
+
+        SseEmitterUtil.sendMessage(receiverUserId.toString(), gson.toJson(new SseVo().setType("comment")));
     }
 
 }
