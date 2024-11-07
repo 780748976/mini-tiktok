@@ -5,4 +5,5 @@ public class InternalMessageTypeConstants {
     public static final int LIKE = 1;
     public static final int DISLIKE = 2;
     public static final int MENTION = 3;
+    public static final int COMMENT = 4;
 }

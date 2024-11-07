@@ -16,7 +16,13 @@ public class InternalMessage {
     private Long id;
 
     @Schema(description = "接收用户ID")
+    private Long receiverUserId;
+
+    @Schema(description = "接收资源ID")
     private Long receiverId;
+
+    @Schema(description = "接收资源类型")
+    private Integer receiverType;
 
     @Schema(description = "消息内容")
     private String content;

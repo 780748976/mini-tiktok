@@ -8,9 +8,17 @@ import org.springframework.transaction.annotation.Transactional;
  */
 public interface InternalMessageService {
 
-    void sendLikeMessage(Long receiverId, Integer targetType, Long targetId, Long userId);
+    void sendLikeMessage(Long receiverUserId, Long receiverId,
+                         Integer receiverType, Integer targetType, Long targetId, Long userId);
 
-    void sendDislikeMessage(Long receiverId, Integer targetType, Long targetId, Long userId);
+    void sendDislikeMessage(Long receiverUserId, Long receiverId,
+                            Integer receiverType, Integer targetType, Long targetId, Long userId);
 
-    void sendMentionMessage(Long receiverId, Long targetId, Long userId);
+    void sendMentionMessage(Long receiverUserId, Long receiverId,
+                            Integer receiverType, Long targetId, Long userId);
+
+    void sendSystemMessage(Long receiverId, String message, Long userId);
+
+    void sendCommentMessage(Long receiverUserId, Long receiverId,
+                            Integer receiverType, Integer targetType, Long targetId, Long userId, String comment);
 }
