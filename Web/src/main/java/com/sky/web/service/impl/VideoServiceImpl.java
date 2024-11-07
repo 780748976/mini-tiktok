@@ -23,6 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 @Service
 public class VideoServiceImpl implements VideoService {
@@ -49,6 +51,8 @@ public class VideoServiceImpl implements VideoService {
     UserWatchRecordMapper userWatchRecordMapper;
     @Resource
     InternalMessageService internalMessageService;
+    @Resource
+    UserFavoriteVideoMapper userFavoriteVideoMapper;
 
     private static final int LIKE = 1;
     private static final int DISLIKE = 2;
@@ -82,7 +86,7 @@ public class VideoServiceImpl implements VideoService {
     }
 
     @Override
-    public Result viewVideo(Long videoId, String userId) {
+    public Result viewVideo(Long videoId, String userId) throws ExecutionException, InterruptedException {
         LambdaQueryWrapper<Video> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Video::getId, videoId);
         Video video = videoMapper.selectOne(queryWrapper);
@@ -95,13 +99,45 @@ public class VideoServiceImpl implements VideoService {
         stringRedisTemplate.opsForHyperLogLog().add(WebRedisConstants.VIEW_VIDEO_KEY + userId,
                 String.valueOf(video.getUserId()));
         UserVideo userVideo = new UserVideo();
+
+        LambdaQueryWrapper<UserVideoAction> likeActionQueryWrapper = new LambdaQueryWrapper<>();
+        likeActionQueryWrapper.eq(UserVideoAction::getUserId, userId)
+                .eq(UserVideoAction::getVideoId, videoId)
+                .eq(UserVideoAction::getActionType, LIKE)
+                .last("limit 1");
+
+        LambdaQueryWrapper<UserVideoAction> dislikeActionQueryWrapper = new LambdaQueryWrapper<>();
+        dislikeActionQueryWrapper.eq(UserVideoAction::getUserId, userId)
+                .eq(UserVideoAction::getVideoId, videoId)
+                .eq(UserVideoAction::getActionType, DISLIKE)
+                .last("limit 1");
+
+        LambdaQueryWrapper<UserFavoriteVideo> favoriteVideoQueryWrapper = new LambdaQueryWrapper<>();
+        favoriteVideoQueryWrapper.eq(UserFavoriteVideo::getUserId, userId)
+                .eq(UserFavoriteVideo::getVideoId, videoId)
+                .last("limit 1");
+        //异步编排
+        CompletableFuture<Boolean> likeFuture = CompletableFuture.supplyAsync(() -> {
+            return userVideoActionMapper.exists(likeActionQueryWrapper);
+        }, asyncServiceExecutor);
+        CompletableFuture<Boolean> dislikeFuture = CompletableFuture.supplyAsync(() -> {
+            return userVideoActionMapper.exists(dislikeActionQueryWrapper);
+        }, asyncServiceExecutor);
+        CompletableFuture<Boolean> favoriteFuture = CompletableFuture.supplyAsync(() -> {
+            return userFavoriteVideoMapper.exists(favoriteVideoQueryWrapper);
+        }, asyncServiceExecutor);
+        CompletableFuture.allOf(likeFuture, favoriteFuture, dislikeFuture);
         userVideo.setVideoId(video.getId())
-                .setUserId(Long.valueOf(video.getUserId()))
+                .setUserId(video.getUserId())
                 .setUrl(video.getUrl())
                 .setViews(stringRedisTemplate.opsForHyperLogLog()
                                 .size(WebRedisConstants.VIEW_VIDEO_KEY + video.getUserId()) + video.getViews())
                 .setTitle(video.getTitle())
                 .setLikes(video.getLikes())
+                .setDislikes(video.getDislikes())
+                .setIsLike(likeFuture.get())
+                .setIsDislike(dislikeFuture.get())
+                .setIsFavorite(favoriteFuture.get())
                 .setNickname(userInfoMapper.selectOne(userInfoQueryWrapper).getNickname())
                 .setCover(video.getCover());
         asyncServiceExecutor.execute(() -> {
@@ -206,5 +242,44 @@ public class VideoServiceImpl implements VideoService {
         internalMessageService.sendDislikeMessage(video.getUserId(), video.getId(),
                 InternalMessageReceiverType.VIDEO, Long.valueOf(userId));
         return Result.success("点踩成功");
+    }
+
+    @Override
+    public Result favoriteVideo(Long videoId, String userId) {
+        // 检查是否已收藏
+        UserFavoriteVideo existingFavorite = userFavoriteVideoMapper.selectOne(
+                new LambdaQueryWrapper<UserFavoriteVideo>()
+                        .eq(UserFavoriteVideo::getUserId, userId)
+                        .eq(UserFavoriteVideo::getVideoId, videoId)
+        );
+
+        if (existingFavorite != null) {
+            return Result.failed("视频已被收藏");
+        }
+
+        UserFavoriteVideo favorite = new UserFavoriteVideo()
+                .setUserId(Long.valueOf(userId))
+                .setVideoId(videoId)
+                .setCreateTime(LocalDateTime.now());
+
+        userFavoriteVideoMapper.insert(favorite);
+
+        return Result.success("收藏成功");
+    }
+
+
+    @Override
+    public Result unfavoriteVideo(Long videoId, String userId) {
+        int deleted = userFavoriteVideoMapper.delete(
+                new LambdaQueryWrapper<UserFavoriteVideo>()
+                        .eq(UserFavoriteVideo::getUserId, userId)
+                        .eq(UserFavoriteVideo::getVideoId, videoId)
+        );
+
+        if (deleted > 0) {
+            return Result.success("取消收藏成功");
+        } else {
+            return Result.failed("收藏记录不存在");
+        }
     }
 }

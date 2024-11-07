@@ -12,6 +12,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.concurrent.ExecutionException;
+
 @RestController
 @RequestMapping("/video")
 @Tag(name = "Video", description = "视频接口")
@@ -37,7 +39,7 @@ public class VideoController {
 
     @GetMapping("/view_video")
     @Operation(summary = "查看视频")
-    public Result viewVideo(@NotBlank @RequestParam Long videoId) {
+    public Result viewVideo(@NotBlank @RequestParam Long videoId) throws ExecutionException, InterruptedException {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         return videoService.viewVideo(videoId, userId);
     }
@@ -54,5 +56,19 @@ public class VideoController {
     public Result dislikeVideo(@RequestParam Long videoId) {
         String userId = SecurityContextHolder.getContext().getAuthentication().getName();
         return videoService.dislikeVideo(videoId, userId);
+    }
+
+    @PostMapping("/favorite")
+    @Operation(summary = "收藏视频")
+    public Result favoriteVideo(@RequestParam Long videoId) {
+        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        return videoService.favoriteVideo(videoId, userId);
+    }
+
+    @PostMapping("/unfavorite")
+    @Operation(summary = "取消收藏视频")
+    public Result unfavoriteVideo(@RequestParam Long videoId) {
+        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+        return videoService.unfavoriteVideo(videoId, userId);
     }
 }

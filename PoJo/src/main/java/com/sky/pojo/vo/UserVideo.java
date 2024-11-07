@@ -32,4 +32,16 @@ public class UserVideo {
 
     @Schema(description = "点赞次数")
     private Long likes;
+
+    @Schema(description = "点踩次数")
+    private Long dislikes;
+
+    @Schema(description = "是否点赞")
+    private Boolean isLike;
+
+    @Schema(description = "是否点踩")
+    private Boolean isDislike;
+
+    @Schema(description = "是否收藏")
+    private Boolean isFavorite;
 }
