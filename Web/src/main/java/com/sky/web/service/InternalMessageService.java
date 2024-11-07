@@ -9,10 +9,10 @@ import org.springframework.transaction.annotation.Transactional;
 public interface InternalMessageService {
 
     void sendLikeMessage(Long receiverUserId, Long receiverId,
-                         Integer receiverType, Integer targetType, Long targetId, Long userId);
+                         Integer receiverType, Long userId);
 
     void sendDislikeMessage(Long receiverUserId, Long receiverId,
-                            Integer receiverType, Integer targetType, Long targetId, Long userId);
+                            Integer receiverType, Long userId);
 
     void sendMentionMessage(Long receiverUserId, Long receiverId,
                             Integer receiverType, Long targetId, Long userId);

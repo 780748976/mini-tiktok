@@ -31,7 +31,7 @@ public class Video {
     private String url;
 
     @Schema(description = "上传者")
-    private String userId;
+    private Long userId;
 
     @Schema(description = "上传时间")
     private LocalDateTime uploadTime;

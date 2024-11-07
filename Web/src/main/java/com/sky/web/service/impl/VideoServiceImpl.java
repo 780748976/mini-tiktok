@@ -6,11 +6,13 @@ import com.sky.common.utils.AliyunOss;
 import com.sky.common.utils.ErrorLogUtil;
 import com.sky.common.utils.PageInfo;
 import com.sky.common.utils.Result;
+import com.sky.pojo.constant.InternalMessageReceiverType;
 import com.sky.pojo.constant.WebRedisConstants;
 import com.sky.pojo.dto.UploadPendingVideoParam;
 import com.sky.pojo.entity.*;
 import com.sky.pojo.mapper.*;
 import com.sky.pojo.vo.UserVideo;
+import com.sky.web.service.InternalMessageService;
 import com.sky.web.service.UserFavoriteTagService;
 import com.sky.web.service.VideoService;
 import jakarta.annotation.Resource;
@@ -45,6 +47,8 @@ public class VideoServiceImpl implements VideoService {
     UserVideoActionMapper userVideoActionMapper;
     @Resource
     UserWatchRecordMapper userWatchRecordMapper;
+    @Resource
+    InternalMessageService internalMessageService;
 
     private static final int LIKE = 1;
     private static final int DISLIKE = 2;
@@ -88,7 +92,8 @@ public class VideoServiceImpl implements VideoService {
         LambdaQueryWrapper<UserInfo> userInfoQueryWrapper = new LambdaQueryWrapper<>();
         userInfoQueryWrapper.eq(UserInfo::getId, userId)
                 .select(UserInfo::getNickname);
-        stringRedisTemplate.opsForHyperLogLog().add(WebRedisConstants.VIEW_VIDEO_KEY + userId, video.getUserId());
+        stringRedisTemplate.opsForHyperLogLog().add(WebRedisConstants.VIEW_VIDEO_KEY + userId,
+                String.valueOf(video.getUserId()));
         UserVideo userVideo = new UserVideo();
         userVideo.setVideoId(video.getId())
                 .setUserId(Long.valueOf(video.getUserId()))
@@ -155,6 +160,8 @@ public class VideoServiceImpl implements VideoService {
                 .setActionType(LIKE)
                 .setActionTime(LocalDateTime.now());
         userVideoActionMapper.insert(newAction);
+        internalMessageService.sendLikeMessage(video.getUserId(), video.getId(),
+                InternalMessageReceiverType.VIDEO, Long.valueOf(userId));
         return Result.success("点赞成功");
     }
 
@@ -196,6 +203,8 @@ public class VideoServiceImpl implements VideoService {
                 .setActionTime(LocalDateTime.now());
         userVideoActionMapper.insert(action);
 
+        internalMessageService.sendDislikeMessage(video.getUserId(), video.getId(),
+                InternalMessageReceiverType.VIDEO, Long.valueOf(userId));
         return Result.success("点踩成功");
     }
 }

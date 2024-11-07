@@ -30,11 +30,11 @@ public class InternalMessage {
     @Schema(description = "消息类型")
     private Integer type;
 
-    @Schema(description = "目标类型 0为审核视频 1为视频 2为评论")
-    private Integer targetType;
+    @Schema(description = "发送相关资源类型 0为审核视频 1为视频 2为评论")
+    private Integer sendType;
 
-    @Schema(description = "目标ID（如视频ID, 评论ID）")
-    private Long targetId;
+    @Schema(description = "发送相关资源ID（如视频ID, 评论ID）")
+    private Long sendId;
 
     @Schema(description = "用户ID")
     private Long userId;

@@ -1,6 +1,6 @@
 package com.sky.web.service.impl;
 
-import com.sky.pojo.constant.InternalMessageTargetTypeConstants;
+import com.sky.pojo.constant.InternalMessageSendTypeConstants;
 import com.sky.pojo.constant.InternalMessageTypeConstants;
 import com.sky.pojo.entity.InternalMessage;
 import com.sky.pojo.mapper.InternalMessageMapper;
@@ -21,14 +21,12 @@ public class InternalMessageServiceImpl implements InternalMessageService {
      */
     @Override
     public void sendLikeMessage(Long receiverUserId, Long receiverId,
-                                Integer receiverType, Integer targetType, Long targetId, Long userId) {
+                                Integer receiverType, Long userId) {
         InternalMessage internalMessage = new InternalMessage()
                 .setReceiverUserId(receiverUserId)
                 .setType(InternalMessageTypeConstants.LIKE)
                 .setReceiverId(receiverId)
                 .setReceiverType(receiverType)
-                .setTargetType(targetType)
-                .setTargetId(targetId)
                 .setUserId(userId)
                 .setRead(false)
                 .setCreateTime(LocalDateTime.now());
@@ -39,15 +37,13 @@ public class InternalMessageServiceImpl implements InternalMessageService {
      * 发送点踩消息
      */
     @Override
-    public void sendDislikeMessage(Long receiverUserId,Long receiverId,
-                                   Integer receiverType, Integer targetType, Long targetId, Long userId) {
+    public void sendDislikeMessage(Long receiverUserId, Long receiverId,
+                                   Integer receiverType, Long userId) {
         InternalMessage internalMessage = new InternalMessage()
                 .setReceiverUserId(receiverUserId)
                 .setReceiverId(receiverId)
                 .setReceiverType(receiverType)
                 .setType(InternalMessageTypeConstants.DISLIKE)
-                .setTargetType(targetType)
-                .setTargetId(targetId)
                 .setUserId(userId)
                 .setRead(false)
                 .setCreateTime(LocalDateTime.now());
@@ -58,15 +54,15 @@ public class InternalMessageServiceImpl implements InternalMessageService {
      * 发送@消息
      */
     @Override
-    public void sendMentionMessage(Long receiverUserId,Long receiverId,
-                                   Integer receiverType, Long targetId, Long userId) {
+    public void sendMentionMessage(Long receiverUserId, Long receiverId,
+                                   Integer receiverType, Long sendId, Long userId) {
         InternalMessage internalMessage = new InternalMessage()
                 .setReceiverUserId(receiverUserId)
                 .setReceiverId(receiverId)
                 .setReceiverType(receiverType)
                 .setType(InternalMessageTypeConstants.MENTION)
-                .setTargetType(InternalMessageTargetTypeConstants.COMMENT)
-                .setTargetId(targetId)
+                .setSendType(InternalMessageSendTypeConstants.COMMENT)
+                .setSendId(sendId)
                 .setUserId(userId)
                 .setRead(false)
                 .setCreateTime(LocalDateTime.now());
@@ -97,8 +93,8 @@ public class InternalMessageServiceImpl implements InternalMessageService {
                 .setReceiverId(receiverId)
                 .setReceiverType(receiverType)
                 .setType(InternalMessageTypeConstants.COMMENT)
-                .setTargetType(targetType)
-                .setTargetId(targetId)
+                .setSendType(targetType)
+                .setSendId(targetId)
                 .setUserId(userId)
                 .setContent(comment)
                 .setRead(false)
