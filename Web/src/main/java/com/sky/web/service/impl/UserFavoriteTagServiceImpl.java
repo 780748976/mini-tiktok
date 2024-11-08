@@ -28,7 +28,7 @@ public class UserFavoriteTagServiceImpl implements UserFavoriteTagService {
     private SqlSessionTemplate sqlSessionTemplate;
 
     @Override
-    public void viewVideoAddProbability(Long videoId, String userId) {
+    public void viewVideoAddProbability(Long videoId, Long userId) {
         List<VideoTag> videoTags = videoTagMapper.selectList(
                 new LambdaQueryWrapper<VideoTag>().eq(VideoTag::getVideoId, videoId));
         LambdaQueryWrapper<UserFavoriteTag> queryWrapper = new LambdaQueryWrapper<>();

@@ -19,7 +19,7 @@ public class UserWatchRecord {
     private Long id;
 
     @Schema(description = "用户ID")
-    private String userId;
+    private Long userId;
 
     @Schema(description = "视频ID")
     private Long videoId;

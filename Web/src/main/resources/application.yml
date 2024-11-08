@@ -147,7 +147,7 @@ springdoc:
   group-configs:
     - group: 'default'
       paths-to-match: '/**'
-      packages-to-scan: com.bili
+      packages-to-scan: com.sky.web
   # 配置Swagger UI的相关设置
   swagger-ui:
     # 设置操作排序方式为字母顺序

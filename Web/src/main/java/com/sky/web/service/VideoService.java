@@ -2,23 +2,32 @@ package com.sky.web.service;
 
 import com.sky.common.utils.Result;
 import com.sky.pojo.dto.UploadPendingVideoParam;
+import com.sky.pojo.entity.Video;
+import com.sky.pojo.vo.UserVideo;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 @Service
 public interface VideoService {
     Result getUserVideoList(Long userId, Integer page, Integer size);
 
-    Result uploadPendingVideo(UploadPendingVideoParam pendingVideo, String userId);
+    Result uploadPendingVideo(UploadPendingVideoParam pendingVideo, Long userId);
 
-    Result viewVideo(Long videoId, String userId) throws ExecutionException, InterruptedException;
+    Result viewVideo(Long videoId, Long userId) throws ExecutionException, InterruptedException;
 
-    Result likeVideo(Long videoId, String userId);
+    Result likeVideo(Long videoId, Long userId);
 
-    Result dislikeVideo(Long videoId, String userId);
+    List<UserVideo> fillVideo(List<Video> videos, Long userId) throws ExecutionException, InterruptedException;
 
-    Result favoriteVideo(Long videoId, String userId);
+    Result dislikeVideo(Long videoId, Long userId);
 
-    Result unfavoriteVideo(Long videoId, String userId);
+    Result favoriteVideo(Long videoId, Long userId);
+
+    Result unfavoriteVideo(Long videoId, Long userId);
+
+    Result getFavoriteVideoList(Long userId, Integer page, Integer size);
+
+    Result getBrowseRecordList(Long userId, Integer page, Integer size);
 }

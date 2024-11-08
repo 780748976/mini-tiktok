@@ -33,7 +33,6 @@ public class CommentServiceImpl implements CommentService {
                 .setCreateTime(LocalDateTime.now());
         commentMapper.insert(comment);
 
-
         return Result.success("评论添加成功");
     }
 

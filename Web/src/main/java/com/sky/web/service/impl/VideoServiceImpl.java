@@ -23,6 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -31,8 +33,6 @@ public class VideoServiceImpl implements VideoService {
 
     @Resource
     VideoMapper videoMapper;
-    @Resource
-    UserMapper userMapper;
     @Resource
     UserInfoMapper userInfoMapper;
     @Resource
@@ -67,7 +67,7 @@ public class VideoServiceImpl implements VideoService {
     }
 
     @Override
-    public Result uploadPendingVideo(UploadPendingVideoParam uploadPendingVideoParam, String userId) {
+    public Result uploadPendingVideo(UploadPendingVideoParam uploadPendingVideoParam, Long userId) {
         boolean ifFileExist = aliyunOss.findFile(uploadPendingVideoParam.getUrl());
         if (!ifFileExist) {
             return Result.failed("视频不存在");
@@ -86,60 +86,16 @@ public class VideoServiceImpl implements VideoService {
     }
 
     @Override
-    public Result viewVideo(Long videoId, String userId) throws ExecutionException, InterruptedException {
+    public Result viewVideo(Long videoId, Long userId) throws ExecutionException, InterruptedException {
         LambdaQueryWrapper<Video> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(Video::getId, videoId);
         Video video = videoMapper.selectOne(queryWrapper);
         if (video == null) {
             return Result.failed("视频不存在");
         }
-        LambdaQueryWrapper<UserInfo> userInfoQueryWrapper = new LambdaQueryWrapper<>();
-        userInfoQueryWrapper.eq(UserInfo::getId, userId)
-                .select(UserInfo::getNickname);
-        stringRedisTemplate.opsForHyperLogLog().add(WebRedisConstants.VIEW_VIDEO_KEY + userId,
+        stringRedisTemplate.opsForHyperLogLog().add(WebRedisConstants.VIEW_VIDEO_KEY + videoId,
                 String.valueOf(video.getUserId()));
-        UserVideo userVideo = new UserVideo();
-
-        LambdaQueryWrapper<UserVideoAction> likeActionQueryWrapper = new LambdaQueryWrapper<>();
-        likeActionQueryWrapper.eq(UserVideoAction::getUserId, userId)
-                .eq(UserVideoAction::getVideoId, videoId)
-                .eq(UserVideoAction::getActionType, LIKE)
-                .last("limit 1");
-
-        LambdaQueryWrapper<UserVideoAction> dislikeActionQueryWrapper = new LambdaQueryWrapper<>();
-        dislikeActionQueryWrapper.eq(UserVideoAction::getUserId, userId)
-                .eq(UserVideoAction::getVideoId, videoId)
-                .eq(UserVideoAction::getActionType, DISLIKE)
-                .last("limit 1");
-
-        LambdaQueryWrapper<UserFavoriteVideo> favoriteVideoQueryWrapper = new LambdaQueryWrapper<>();
-        favoriteVideoQueryWrapper.eq(UserFavoriteVideo::getUserId, userId)
-                .eq(UserFavoriteVideo::getVideoId, videoId)
-                .last("limit 1");
-        //异步编排
-        CompletableFuture<Boolean> likeFuture = CompletableFuture.supplyAsync(() -> {
-            return userVideoActionMapper.exists(likeActionQueryWrapper);
-        }, asyncServiceExecutor);
-        CompletableFuture<Boolean> dislikeFuture = CompletableFuture.supplyAsync(() -> {
-            return userVideoActionMapper.exists(dislikeActionQueryWrapper);
-        }, asyncServiceExecutor);
-        CompletableFuture<Boolean> favoriteFuture = CompletableFuture.supplyAsync(() -> {
-            return userFavoriteVideoMapper.exists(favoriteVideoQueryWrapper);
-        }, asyncServiceExecutor);
-        CompletableFuture.allOf(likeFuture, favoriteFuture, dislikeFuture);
-        userVideo.setVideoId(video.getId())
-                .setUserId(video.getUserId())
-                .setUrl(video.getUrl())
-                .setViews(stringRedisTemplate.opsForHyperLogLog()
-                                .size(WebRedisConstants.VIEW_VIDEO_KEY + video.getUserId()) + video.getViews())
-                .setTitle(video.getTitle())
-                .setLikes(video.getLikes())
-                .setDislikes(video.getDislikes())
-                .setIsLike(likeFuture.get())
-                .setIsDislike(dislikeFuture.get())
-                .setIsFavorite(favoriteFuture.get())
-                .setNickname(userInfoMapper.selectOne(userInfoQueryWrapper).getNickname())
-                .setCover(video.getCover());
+        List<UserVideo> userVideo = fillVideo(List.of(video), userId);
         asyncServiceExecutor.execute(() -> {
             try {
                 //增加观看记录
@@ -160,7 +116,7 @@ public class VideoServiceImpl implements VideoService {
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result likeVideo(Long videoId, String userId) {
+    public Result likeVideo(Long videoId, Long userId) {
         Video video = videoMapper.selectById(videoId);
         if (video == null) {
             return Result.failed("视频不存在");
@@ -202,8 +158,80 @@ public class VideoServiceImpl implements VideoService {
     }
 
     @Override
+    public List<UserVideo> fillVideo(List<Video> videos, Long userId) throws ExecutionException, InterruptedException {
+        //是否点赞
+        LambdaQueryWrapper<UserVideoAction> likeActionQueryWrapper = new LambdaQueryWrapper<>();
+        likeActionQueryWrapper.eq(UserVideoAction::getUserId, userId)
+                .in(UserVideoAction::getVideoId, videos.stream().map(Video::getId).toArray())
+                .eq(UserVideoAction::getActionType, LIKE)
+                .select(UserVideoAction::getVideoId);
+        //是否点踩
+        LambdaQueryWrapper<UserVideoAction> dislikeActionQueryWrapper = new LambdaQueryWrapper<>();
+        dislikeActionQueryWrapper.eq(UserVideoAction::getUserId, userId)
+                .in(UserVideoAction::getVideoId, videos.stream().map(Video::getId).toArray())
+                .eq(UserVideoAction::getActionType, DISLIKE)
+                .select(UserVideoAction::getVideoId);
+        //是否收藏
+        LambdaQueryWrapper<UserFavoriteVideo> favoriteVideoQueryWrapper = new LambdaQueryWrapper<>();
+        favoriteVideoQueryWrapper.eq(UserFavoriteVideo::getUserId, userId)
+                .in(UserFavoriteVideo::getVideoId, videos.stream().map(Video::getId).toArray())
+                .select(UserFavoriteVideo::getVideoId);
+        //查询作者信息
+        LambdaQueryWrapper<UserInfo> userQueryWrapper = new LambdaQueryWrapper<>();
+        userQueryWrapper.in(UserInfo::getId, videos.stream().map(Video::getUserId).toArray())
+                .select(UserInfo::getId, UserInfo::getNickname);
+
+        //异步编排
+        CompletableFuture<List<Long>> likeFuture = CompletableFuture.supplyAsync(() -> {
+            return userVideoActionMapper.selectList(likeActionQueryWrapper).stream()
+                    .map(UserVideoAction::getVideoId).toList();
+        }, asyncServiceExecutor);
+        CompletableFuture<List<Long>> dislikeFuture = CompletableFuture.supplyAsync(() -> {
+            return userVideoActionMapper.selectList(dislikeActionQueryWrapper).stream()
+                    .map(UserVideoAction::getVideoId).toList();
+        }, asyncServiceExecutor);
+        CompletableFuture<List<Long>> favoriteFuture = CompletableFuture.supplyAsync(() -> {
+            return userFavoriteVideoMapper.selectList(favoriteVideoQueryWrapper).stream()
+                    .map(UserFavoriteVideo::getVideoId).toList();
+        }, asyncServiceExecutor);
+        CompletableFuture<List<UserInfo>> userInfoFuture = CompletableFuture.supplyAsync(() -> {
+            return userInfoMapper.selectList(userQueryWrapper);
+        }, asyncServiceExecutor);
+
+        CompletableFuture.allOf(likeFuture, favoriteFuture, dislikeFuture, userInfoFuture);
+        List<Long> likeVideoIds = likeFuture.get();
+        List<Long> dislikeVideoIds = dislikeFuture.get();
+        List<Long> favoriteVideoIds = favoriteFuture.get();
+        List<UserInfo> userInfos = userInfoFuture.get();
+        List<UserVideo> userVideos = new ArrayList<>();
+        for (int i = 0; i < videos.size(); i++) {
+            UserVideo userVideo = new UserVideo();
+            int finalI = i;
+            userVideo.setVideoId(videos.get(i).getId())
+                    .setUserId(videos.get(i).getUserId())
+                    .setUrl(videos.get(i).getUrl())
+                    .setViews(stringRedisTemplate.opsForHyperLogLog()
+                            .size(WebRedisConstants.VIEW_VIDEO_KEY + videos.get(i).getId()) +
+                            videos.get(i).getViews())
+                    .setTitle(videos.get(i).getTitle())
+                    .setLikes(videos.get(i).getLikes())
+                    .setDislikes(videos.get(i).getDislikes())
+                    .setIsLike(likeVideoIds.contains(videos.get(i).getId()))
+                    .setIsDislike(dislikeVideoIds.contains(videos.get(i).getId()))
+                    .setIsFavorite(favoriteVideoIds.contains(videos.get(i).getId()))
+                    .setNickname(userInfos.stream().filter(userInfo ->
+                                    userInfo.getId().equals(videos.get(finalI).getUserId()))
+                            .findFirst().orElse(new UserInfo()).getNickname())
+                    .setCover(videos.get(i).getCover());
+            userVideos.add(userVideo);
+        }
+
+        return userVideos;
+    }
+
+    @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result dislikeVideo(Long videoId, String userId) {
+    public Result dislikeVideo(Long videoId, Long userId) {
         Video video = videoMapper.selectById(videoId);
         if (video == null) {
             return Result.failed("视频不存在");
@@ -245,7 +273,7 @@ public class VideoServiceImpl implements VideoService {
     }
 
     @Override
-    public Result favoriteVideo(Long videoId, String userId) {
+    public Result favoriteVideo(Long videoId, Long userId) {
         // 检查是否已收藏
         UserFavoriteVideo existingFavorite = userFavoriteVideoMapper.selectOne(
                 new LambdaQueryWrapper<UserFavoriteVideo>()
@@ -258,7 +286,7 @@ public class VideoServiceImpl implements VideoService {
         }
 
         UserFavoriteVideo favorite = new UserFavoriteVideo()
-                .setUserId(Long.valueOf(userId))
+                .setUserId(userId)
                 .setVideoId(videoId)
                 .setCreateTime(LocalDateTime.now());
 
@@ -269,7 +297,7 @@ public class VideoServiceImpl implements VideoService {
 
 
     @Override
-    public Result unfavoriteVideo(Long videoId, String userId) {
+    public Result unfavoriteVideo(Long videoId, Long userId) {
         int deleted = userFavoriteVideoMapper.delete(
                 new LambdaQueryWrapper<UserFavoriteVideo>()
                         .eq(UserFavoriteVideo::getUserId, userId)
@@ -281,5 +309,25 @@ public class VideoServiceImpl implements VideoService {
         } else {
             return Result.failed("收藏记录不存在");
         }
+    }
+
+    @Override
+    public Result getFavoriteVideoList(Long userId, Integer page, Integer size) {
+        Page<UserFavoriteVideo> favoriteVideoPage = new Page<>(page, size);
+        Page<UserFavoriteVideo> favoriteVideoList = userFavoriteVideoMapper.selectPage(favoriteVideoPage,
+                new LambdaQueryWrapper<UserFavoriteVideo>()
+                        .eq(UserFavoriteVideo::getUserId, userId)
+        );
+        return Result.success(PageInfo.restPage(favoriteVideoList));
+    }
+
+    @Override
+    public Result getBrowseRecordList(Long userId, Integer page, Integer size) {
+        Page<UserWatchRecord> watchRecordPage = new Page<>(page, size);
+        Page<UserWatchRecord> watchRecordList = userWatchRecordMapper.selectPage(watchRecordPage,
+                new LambdaQueryWrapper<UserWatchRecord>()
+                        .eq(UserWatchRecord::getUserId, userId)
+        );
+        return Result.success(PageInfo.restPage(watchRecordList));
     }
 }

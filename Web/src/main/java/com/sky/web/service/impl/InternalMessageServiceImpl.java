@@ -33,7 +33,7 @@ public class InternalMessageServiceImpl implements InternalMessageService {
                 .setReceiverId(receiverId)
                 .setReceiverType(receiverType)
                 .setUserId(userId)
-                .setRead(false)
+                .setIsRead(false)
                 .setCreateTime(LocalDateTime.now());
         internalMessageMapper.insert(internalMessage);
 
@@ -52,7 +52,7 @@ public class InternalMessageServiceImpl implements InternalMessageService {
                 .setReceiverType(receiverType)
                 .setType(InternalMessageTypeConstants.DISLIKE)
                 .setUserId(userId)
-                .setRead(false)
+                .setIsRead(false)
                 .setCreateTime(LocalDateTime.now());
         internalMessageMapper.insert(internalMessage);
     }
@@ -71,7 +71,7 @@ public class InternalMessageServiceImpl implements InternalMessageService {
                 .setSendType(InternalMessageSendTypeConstants.COMMENT)
                 .setSendId(sendId)
                 .setUserId(userId)
-                .setRead(false)
+                .setIsRead(false)
                 .setCreateTime(LocalDateTime.now());
         internalMessageMapper.insert(internalMessage);
 
@@ -86,7 +86,7 @@ public class InternalMessageServiceImpl implements InternalMessageService {
                 .setReceiverUserId(receiverUserId)
                 .setType(InternalMessageTypeConstants.SYSTEM)
                 .setContent(message)
-                .setRead(false)
+                .setIsRead(false)
                 .setCreateTime(LocalDateTime.now());
         internalMessageMapper.insert(internalMessage);
 
@@ -108,7 +108,7 @@ public class InternalMessageServiceImpl implements InternalMessageService {
                 .setSendId(targetId)
                 .setUserId(userId)
                 .setContent(comment)
-                .setRead(false)
+                .setIsRead(false)
                 .setCreateTime(LocalDateTime.now());
         internalMessageMapper.insert(internalMessage);
 

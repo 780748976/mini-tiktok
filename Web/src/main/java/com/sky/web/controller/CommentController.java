@@ -7,11 +7,14 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/comments")
 @Tag(name = "Comment", description = "视频评论控制器")
+@Validated
 public class CommentController {
 
     @Resource
@@ -31,13 +34,13 @@ public class CommentController {
 
     @PostMapping("/like")
     @Operation(summary = "点赞评论")
-    public Result likeComment(@RequestParam Long commentId) {
+    public Result likeComment(@RequestParam @Min(1) Long commentId) {
         return commentService.likeComment(commentId);
     }
 
     @PostMapping("/dislike")
     @Operation(summary = "点踩评论")
-    public Result dislikeComment(@RequestParam Long commentId) {
+    public Result dislikeComment(@RequestParam @Min(1) Long commentId) {
         return commentService.dislikeComment(commentId);
     }
 }
