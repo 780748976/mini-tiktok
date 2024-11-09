@@ -215,6 +215,7 @@ public class VideoServiceImpl implements VideoService {
                             .size(WebRedisConstants.VIEW_VIDEO_KEY + videos.get(i).getId()) +
                             videos.get(i).getViews())
                     .setTitle(videos.get(i).getTitle())
+                    .setDescription(videos.get(i).getDescription())
                     .setLikes(videos.get(i).getLikes())
                     .setDislikes(videos.get(i).getDislikes())
                     .setIsLike(likeVideoIds.contains(videos.get(i).getId()))

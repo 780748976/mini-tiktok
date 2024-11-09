@@ -41,4 +41,16 @@ public class PendingVideo {
 
     @Schema(description = "审核意见")
     private String auditComment;
+
+    @Schema(description = "审核时间")
+    private LocalDateTime auditTime;
+
+    @Schema(description = "审核者")
+    private Long auditUserId;
+
+    @Schema(description = "审核者用户名")
+    private String auditUsername;
+
+    @Schema(description = "是否已审核")
+    private Boolean isAudited;
 }
