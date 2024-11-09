@@ -93,7 +93,7 @@ spring:
         pool: # Lettuce客户端连接池配置
           max-active: 32 # 最大活动连接数
           max-idle: 16 # 最大空闲连接数
-          min-idle: 8 # 最小空闲连接数
+          min-idle: 8 # 最小空闲连接数spring:
 
   datasource: # 数据源配置
     driver-class-name: ${sky.datasource.driver-class-name} # JDBC驱动类名
@@ -137,6 +137,8 @@ spring:
   web: # Web配置
     resources: # 资源处理配置
       static-locations: classpath:/META-INF/resources/,classpath:/resources/,classpath:/,classpath:/public/,classpath:/itstyle/ # 静态资源位置
+  kafka:
+    bootstrap-servers: ${sky.kafka.bootstrap-servers} # Kafka服务器地址
 
 # 配置SpringDoc，用于开放API文档
 springdoc:
@@ -174,3 +176,8 @@ oss:
   # 存储桶名称，用于指定要操作的OSS存储桶
   bucketName: ${sky.oss.bucketName}
 
+elasticsearch:
+  serverUrl: ${sky.elasticsearch.uris} # Elasticsearch服务器地址
+  serverPort: ${sky.elasticsearch.port} # Elasticsearch服务器端口
+  userName: ${sky.elasticsearch.username} # Elasticsearch用户名
+  password: ${sky.elasticsearch.password} # Elasticsearch密码

@@ -1,5 +1,6 @@
 package com.sky.web.service.impl;
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.sky.common.utils.AliyunOss;
