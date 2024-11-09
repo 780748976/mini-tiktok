@@ -12,4 +12,5 @@ public class WebRedisConstants {
     public static final String EMAIL_CODE_LOCK = "EmailCodeLock:";
     public static final String VIEW_VIDEO_KEY = "ViewVideo:";
     public static final String ADMIN_INVITE_CODE_KEY = "AdminInviteCode:";
+    public static final String ADMIN_LOGIN_BLACKLIST_KEY = "AdminLoginBlackList:";
 }
