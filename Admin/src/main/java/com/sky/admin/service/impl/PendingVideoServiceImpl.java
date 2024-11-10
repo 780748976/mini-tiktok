@@ -39,7 +39,10 @@ public class PendingVideoServiceImpl implements PendingVideoService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result auditVideo(AuditVideoParam auditVideoParam, Long adminId) {
-        PendingVideo pendingVideo = pendingVideoMapper.selectById(auditVideoParam.getVideoId());
+        LambdaQueryWrapper<PendingVideo> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(PendingVideo::getId, auditVideoParam.getVideoId());
+        queryWrapper.eq(PendingVideo::getIsAudited, false);
+        PendingVideo pendingVideo = pendingVideoMapper.selectOne(queryWrapper);
         if (pendingVideo == null) {
             return Result.failed("视频不存在");
         }
