@@ -2,15 +2,20 @@ package com.sky.admin.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.google.gson.Gson;
 import com.sky.common.utils.Result;
+import com.sky.pojo.constant.VideoStatus;
 import com.sky.pojo.dto.AuditVideoParam;
 import com.sky.pojo.entity.Admin;
 import com.sky.pojo.entity.PendingVideo;
+import com.sky.pojo.entity.Video;
 import com.sky.pojo.mapper.AdminMapper;
 import com.sky.pojo.mapper.PendingVideoMapper;
 import com.sky.admin.service.PendingVideoService;
+import com.sky.pojo.mapper.VideoMapper;
 import com.sky.pojo.vo.UserPendingVideo;
 import jakarta.annotation.Resource;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +29,12 @@ public class PendingVideoServiceImpl implements PendingVideoService {
     private PendingVideoMapper pendingVideoMapper;
     @Resource
     AdminMapper adminMapper;
+    @Resource
+    KafkaTemplate<String, String> kafkaTemplate;
+    @Resource
+    VideoMapper videoMapper;
+    @Resource
+    Gson gson;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -40,6 +51,16 @@ public class PendingVideoServiceImpl implements PendingVideoService {
         pendingVideo.setAuditUsername(admin.getUsername());
         pendingVideo.setIsAudited(true);
         pendingVideoMapper.updateById(pendingVideo);
+        Video video = new Video();
+        video.setTitle(pendingVideo.getTitle());
+        video.setCover(pendingVideo.getCover());
+        video.setDescription(pendingVideo.getDescription());
+        video.setUrl(pendingVideo.getUrl());
+        video.setUserId(pendingVideo.getUserId());
+        video.setUploadTime(pendingVideo.getUploadTime());
+        video.setStatus(VideoStatus.NORMAL);
+        videoMapper.insert(video);
+        kafkaTemplate.send("video_audit", gson.toJson(video));
         return Result.success("审核成功");
     }
 

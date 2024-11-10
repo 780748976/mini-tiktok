@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -84,5 +85,14 @@ public class VideoController {
     public Result getBrowseRecordList(@RequestParam @NotNull Integer page, @RequestParam @NotNull Integer size) {
         Long userId = Long.valueOf(SecurityContextHolder.getContext().getAuthentication().getName());
         return videoService.getBrowseRecordList(userId, page, size);
+    }
+
+    @Resource
+    KafkaTemplate<String, String> kafkaTemplate;
+
+    @GetMapping("/kafka_test")
+    public Result kafkaTest() {
+        kafkaTemplate.send("video_audit", "test");
+        return Result.success();
     }
 }

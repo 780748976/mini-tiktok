@@ -46,6 +46,6 @@ public class Video {
     @Schema(description = "点踩次数")
     private Long dislikes;
 
-    @Schema(description = "状态 0为正常 1为已被禁用 2为已被删除")
+    @Schema(description = "状态 0为正常 1为已被禁用 2为已被删除 对应VideoStatus")
     private Integer status;
 }
