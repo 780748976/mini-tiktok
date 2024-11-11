@@ -3,6 +3,7 @@ package com.sky.admin.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.google.gson.Gson;
+import com.sky.admin.config.ExecutorConfig;
 import com.sky.common.utils.Result;
 import com.sky.pojo.constant.InternalMessageReceiverType;
 import com.sky.pojo.constant.PendingVideoAuditStatus;
@@ -18,6 +19,7 @@ import com.sky.pojo.mapper.VideoMapper;
 import com.sky.pojo.mapper.VideoTagMapper;
 import com.sky.pojo.vo.UserPendingVideo;
 import jakarta.annotation.Resource;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +28,9 @@ import com.sky.web.service.InternalMessageService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
 
 @Service
 public class PendingVideoServiceImpl implements PendingVideoService {
@@ -44,10 +49,12 @@ public class PendingVideoServiceImpl implements PendingVideoService {
     InternalMessageService internalMessageService;
     @Resource
     VideoTagMapper videoTagMapper;
+    @Autowired
+    ThreadPoolExecutor asyncServiceExecutor;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Result auditVideo(AuditVideoParam auditVideoParam, Long adminId) {
+    public Result auditVideo(AuditVideoParam auditVideoParam, Long adminId) throws ExecutionException, InterruptedException {
         if (!Objects.equals(auditVideoParam.getAuditStatus(), PendingVideoAuditStatus.PASS) &&
                 !Objects.equals(auditVideoParam.getAuditStatus(), PendingVideoAuditStatus.REJECT)) {
             return Result.failed("审核状态错误");
@@ -69,8 +76,10 @@ public class PendingVideoServiceImpl implements PendingVideoService {
         pendingVideo.setAuditUserId(adminId);
         pendingVideo.setAuditUsername(admin.getUsername());
         pendingVideo.setIsAudited(true);
-        pendingVideoMapper.updateById(pendingVideo);
-
+        CompletableFuture<Void> pendingVideoFuture =
+                CompletableFuture.supplyAsync(() ->{ pendingVideoMapper.updateById(pendingVideo);
+                    return null;
+                }, asyncServiceExecutor);
         Video video = new Video();
         video.setTitle(pendingVideo.getTitle());
         video.setCover(pendingVideo.getCover());
@@ -79,13 +88,23 @@ public class PendingVideoServiceImpl implements PendingVideoService {
         video.setUserId(pendingVideo.getUserId());
         video.setUploadTime(pendingVideo.getUploadTime());
         video.setStatus(VideoStatus.NORMAL);
-        videoMapper.insert(video);
+        CompletableFuture<Void> videoFuture =
+                CompletableFuture.supplyAsync(() ->{ videoMapper.insert(video);
+                    return null;
+                }, asyncServiceExecutor);
 
         //以 分开tags
         if (pendingVideo.getTags() != null) {
             String[] tags = pendingVideo.getTags().split(" ");
             List<String> tagList = List.of(tags);
-            videoTagMapper.insertBatch(video.getId(), tagList);
+            CompletableFuture<Void> videoTagFuture =
+                    CompletableFuture.supplyAsync(() ->{ videoTagMapper.insertBatch(video.getId(), tagList);
+                        return null;
+                    }, asyncServiceExecutor);
+            CompletableFuture.allOf(pendingVideoFuture, videoFuture, videoTagFuture).get();
+        }
+        else {
+            CompletableFuture.allOf(pendingVideoFuture, videoFuture).get();
         }
 
         if (Objects.equals(auditVideoParam.getAuditStatus(), PendingVideoAuditStatus.PASS)) {

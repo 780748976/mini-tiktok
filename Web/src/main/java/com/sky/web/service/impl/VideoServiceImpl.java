@@ -221,7 +221,8 @@ public class VideoServiceImpl implements VideoService {
             return userInfoMapper.selectList(userQueryWrapper);
         }, asyncServiceExecutor);
 
-        CompletableFuture.allOf(likeFuture, favoriteFuture, dislikeFuture, userInfoFuture);
+        CompletableFuture.allOf(likeFuture, favoriteFuture, dislikeFuture, userInfoFuture).get();
+
         List<Long> likeVideoIds = likeFuture.get();
         List<Long> dislikeVideoIds = dislikeFuture.get();
         List<Long> favoriteVideoIds = favoriteFuture.get();

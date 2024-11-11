@@ -140,12 +140,9 @@ spring:
   kafka:
     bootstrap-servers: ${sky.kafka.bootstrap-servers} # Kafka服务器地址
     producer:
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       bootstrap-servers: ${sky.kafka.bootstrap-servers}
     consumer:
-      auto-offset-reset: earliest
       bootstrap-servers: ${sky.kafka.bootstrap-servers}
-      max-poll-records: 100
 
 # 配置SpringDoc，用于开放API文档
 springdoc:

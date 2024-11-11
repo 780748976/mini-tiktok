@@ -17,10 +17,11 @@ import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
 @Configuration
 public class KafkaConsumerConfig {
 
-    private String brokers= "159.75.174.133:9092";
- 
-    private String group1 = "test1";
-    private String group2 = "test2";
+    @Value("${spring.kafka.bootstrap-servers}")
+    private String brokers;
+
+    private final String group1 = "test1";
+    private final String group2 = "test2";
  
     @Bean
     public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, String>> kafkaListenerContainerFactory1() {
@@ -39,7 +40,7 @@ public class KafkaConsumerConfig {
         factory.getContainerProperties().setPollTimeout(4000);
         return factory;
     }
-    
+
     public Map<String, Object> getCommonPropertis() {
         Map<String, Object> properties = new HashMap<String, Object>();
         properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, brokers);
