@@ -13,6 +13,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
 @RestController
@@ -87,12 +88,12 @@ public class VideoController {
         return videoService.getBrowseRecordList(userId, page, size);
     }
 
-    @Resource
-    KafkaTemplate<String, String> kafkaTemplate;
-
-    @GetMapping("/kafka_test")
-    public Result kafkaTest() {
-        kafkaTemplate.send("video_audit", "test");
-        return Result.success();
+    @Operation(summary = "分页搜索视频")
+    @GetMapping("/search_video")
+    public Result searchVideo(@RequestParam @NotBlank String keyword,
+                              @RequestParam(defaultValue = "10") Integer page,
+                              @RequestParam(defaultValue = "10") Integer size,
+                              @RequestParam @NotBlank String sortType) throws IOException {
+        return videoService.searchVideo(keyword, page, size, sortType);
     }
 }

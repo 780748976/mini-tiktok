@@ -4,8 +4,10 @@ import com.sky.common.utils.Result;
 import com.sky.pojo.dto.UploadPendingVideoParam;
 import com.sky.pojo.entity.Video;
 import com.sky.pojo.vo.UserVideo;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -30,4 +32,6 @@ public interface VideoService {
     Result getFavoriteVideoList(Long userId, Integer page, Integer size);
 
     Result getBrowseRecordList(Long userId, Integer page, Integer size);
+
+    Result searchVideo(String keyword, Integer page, Integer size, String sortType) throws IOException;
 }

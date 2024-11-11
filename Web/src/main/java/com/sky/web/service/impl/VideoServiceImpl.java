@@ -1,6 +1,9 @@
 package com.sky.web.service.impl;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch._types.FieldSort;
+import co.elastic.clients.elasticsearch._types.SortOrder;
+import co.elastic.clients.elasticsearch.core.SearchResponse;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.sky.common.utils.AliyunOss;
@@ -17,12 +20,14 @@ import com.sky.web.service.InternalMessageService;
 import com.sky.web.service.UserFavoriteTagService;
 import com.sky.web.service.VideoService;
 import jakarta.annotation.Resource;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -54,6 +59,8 @@ public class VideoServiceImpl implements VideoService {
     InternalMessageService internalMessageService;
     @Resource
     UserFavoriteVideoMapper userFavoriteVideoMapper;
+    @Resource
+    ElasticsearchClient elasticsearchClient;
 
     private static final int LIKE = 1;
     private static final int DISLIKE = 2;
@@ -331,5 +338,33 @@ public class VideoServiceImpl implements VideoService {
                         .eq(UserWatchRecord::getUserId, userId)
         );
         return Result.success(PageInfo.restPage(watchRecordList));
+    }
+
+    @Override
+    public Result searchVideo(String keyword, Integer page, Integer size, String sortType) throws IOException {
+        switch (sortType) {
+            case "like" -> sortType = "likes";
+            case "view" -> sortType = "views";
+            case "time" -> sortType = "uploadTime";
+            default -> {
+                return Result.failed("排序类型不存在");
+            }
+        }
+        String finalSortType = sortType;
+        SearchResponse<Video> videos = elasticsearchClient.search(i -> i
+                .index("video")
+                .query(q -> q
+                        .match(m -> m
+                                .field("title")
+                                .query(keyword)
+                        )
+                )
+                .sort(s -> s
+                        .field(FieldSort.of(f -> f.field(finalSortType)
+                                .order(SortOrder.Desc)))
+                )
+                .from((page - 1) * size)
+                .size(size), Video.class);
+        return Result.success(videos.hits().hits());
     }
 }
