@@ -13,4 +13,7 @@ public class WebRedisConstants {
     public static final String VIEW_VIDEO_KEY = "ViewVideo:";
     public static final String ADMIN_INVITE_CODE_KEY = "AdminInviteCode:";
     public static final String ADMIN_LOGIN_BLACKLIST_KEY = "AdminLoginBlackList:";
+    public static final String USER_DYNAMICS = "UserDynamics:";
+    //用户发布视频到follower时的游标
+    public static final String VIDEO_PUBLISH_CURSOR = "VideoPublishCursor:";
 }
