@@ -11,6 +11,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.concurrent.ExecutionException;
+
 @RestController
 @RequestMapping("/pending_video")
 @Tag(name = "审核视频接口")
@@ -29,7 +31,7 @@ public class PendingVideoController {
 
     @PostMapping("/audit_video")
     @Operation(summary = "审核视频")
-    public Result auditVideo(@Valid @RequestBody AuditVideoParam auditVideoParam) {
+    public Result auditVideo(@Valid @RequestBody AuditVideoParam auditVideoParam) throws ExecutionException, InterruptedException {
         Long adminId = Long.valueOf(SecurityContextHolder.getContext().getAuthentication().getName());
         return pendingVideoService.auditVideo(auditVideoParam, adminId);
     }
