@@ -81,11 +81,29 @@ public class InternalMessageServiceImpl implements InternalMessageService {
      * 发送系统消息
      */
     @Override
-    public void sendSystemMessage(Long receiverUserId, String message, Long userId) {
+    public void sendSystemMessage(Long receiverUserId, String message) {
         InternalMessage internalMessage = new InternalMessage()
                 .setReceiverUserId(receiverUserId)
                 .setType(InternalMessageTypeConstants.SYSTEM)
                 .setContent(message)
+                .setIsRead(false)
+                .setCreateTime(LocalDateTime.now());
+        internalMessageMapper.insert(internalMessage);
+
+        SseEmitterUtil.sendMessage(receiverUserId.toString(), gson.toJson(new SseVo().setType("system")));
+    }
+
+    /**
+     * 发送系统消息
+     */
+    @Override
+    public void sendSystemMessage(Long receiverUserId, String message, Long receiverId, Integer receiverType) {
+        InternalMessage internalMessage = new InternalMessage()
+                .setReceiverUserId(receiverUserId)
+                .setType(InternalMessageTypeConstants.SYSTEM)
+                .setContent(message)
+                .setReceiverId(receiverId)
+                .setReceiverType(receiverType)
                 .setIsRead(false)
                 .setCreateTime(LocalDateTime.now());
         internalMessageMapper.insert(internalMessage);

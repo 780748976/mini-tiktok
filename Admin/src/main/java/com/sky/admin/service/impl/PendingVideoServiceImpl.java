@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.google.gson.Gson;
 import com.sky.common.utils.Result;
+import com.sky.pojo.constant.InternalMessageReceiverType;
+import com.sky.pojo.constant.PendingVideoAuditStatus;
 import com.sky.pojo.constant.VideoStatus;
 import com.sky.pojo.dto.AuditVideoParam;
 import com.sky.pojo.entity.Admin;
@@ -18,9 +20,11 @@ import jakarta.annotation.Resource;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.sky.web.service.InternalMessageService;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class PendingVideoServiceImpl implements PendingVideoService {
@@ -35,10 +39,16 @@ public class PendingVideoServiceImpl implements PendingVideoService {
     VideoMapper videoMapper;
     @Resource
     Gson gson;
+    @Resource
+    InternalMessageService internalMessageService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result auditVideo(AuditVideoParam auditVideoParam, Long adminId) {
+        if (!Objects.equals(auditVideoParam.getAuditStatus(), PendingVideoAuditStatus.PASS) &&
+                !Objects.equals(auditVideoParam.getAuditStatus(), PendingVideoAuditStatus.REJECT)) {
+            return Result.failed("审核状态错误");
+        }
         LambdaQueryWrapper<PendingVideo> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(PendingVideo::getId, auditVideoParam.getVideoId());
         queryWrapper.eq(PendingVideo::getIsAudited, false);
@@ -63,6 +73,22 @@ public class PendingVideoServiceImpl implements PendingVideoService {
         video.setUploadTime(pendingVideo.getUploadTime());
         video.setStatus(VideoStatus.NORMAL);
         videoMapper.insert(video);
+        if (Objects.equals(auditVideoParam.getAuditStatus(), PendingVideoAuditStatus.PASS)) {
+            String message = "您的视频" + pendingVideo.getTitle() + "已审核通过";
+            if (auditVideoParam.getAuditComment() != null) {
+                message = message + "，原因：" + auditVideoParam.getAuditComment();
+            }
+            internalMessageService.sendSystemMessage(pendingVideo.getUserId(), message,
+                    pendingVideo.getId(), InternalMessageReceiverType.PENDING_VIDEO);
+        }
+        else if (Objects.equals(auditVideoParam.getAuditStatus(), PendingVideoAuditStatus.REJECT)) {
+            String message = "您的视频" + pendingVideo.getTitle() + "未审核通过";
+            if (auditVideoParam.getAuditComment() != null) {
+                message = message + "，原因：" + auditVideoParam.getAuditComment();
+            }
+            internalMessageService.sendSystemMessage(pendingVideo.getUserId(), message,
+                    pendingVideo.getId(), InternalMessageReceiverType.PENDING_VIDEO);
+        }
         kafkaTemplate.send("video_audit", gson.toJson(video));
         return Result.success("审核成功");
     }

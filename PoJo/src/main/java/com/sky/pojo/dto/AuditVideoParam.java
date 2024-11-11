@@ -13,8 +13,8 @@ public class AuditVideoParam {
     private Long videoId;
 
     @Schema(description = "审核状态")
-    @NotBlank(message = "审核状态不可为空")
-    private String auditStatus;
+    @NotNull(message = "审核状态不可为空")
+    private Integer auditStatus;
 
     @Schema(description = "审核意见")
     private String auditComment;

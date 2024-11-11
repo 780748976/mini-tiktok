@@ -3,6 +3,7 @@ package com.sky.web.mq;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import com.google.gson.Gson;
 import com.sky.pojo.entity.Video;
+import com.sky.web.service.InternalMessageService;
 import jakarta.annotation.Resource;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;

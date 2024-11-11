@@ -18,7 +18,7 @@ public class InternalMessage {
     @Schema(description = "接收用户ID")
     private Long receiverUserId;
 
-    @Schema(description = "接收资源ID 0为评论 1为视频 对应InternalMessageReceiverType")
+    @Schema(description = "接收资源ID 0为审核视频 1为视频 2为评论 对应InternalMessageReceiverType")
     private Long receiverId;
 
     @Schema(description = "接收资源类型")

@@ -36,8 +36,8 @@ public class PendingVideo {
     @Schema(description = "上传时间")
     private LocalDateTime uploadTime;
 
-    @Schema(description = "审核状态")
-    private String auditStatus;
+    @Schema(description = "审核状态 0-待审核 1-审核通过 2-审核不通过 对应PendingVideoAuditStatus")
+    private Integer auditStatus;
 
     @Schema(description = "审核意见")
     private String auditComment;
