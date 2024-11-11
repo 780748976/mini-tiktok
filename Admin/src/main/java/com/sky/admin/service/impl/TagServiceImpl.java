@@ -22,6 +22,13 @@ public class TagServiceImpl implements TagService {
 
     @Override
     public Result createTag(TagParam tagParam) {
+        //判断标签是否带空格
+        if (tagParam.getName().contains(" ")) {
+            return Result.failed("标签名不能包含空格");
+        }
+        if (tagMapper.selectOne(new LambdaQueryWrapper<Tag>().eq(Tag::getName, tagParam.getName())) != null) {
+            return Result.failed("标签已存在");
+        }
         Tag tag = new Tag();
         BeanUtils.copyProperties(tagParam, tag);
         tagMapper.insert(tag);
@@ -52,6 +59,13 @@ public class TagServiceImpl implements TagService {
 
     @Override
     public Result updateTag(Long id, TagParam tagParam) {
+        //判断标签是否带空格
+        if (tagParam.getName().contains(" ")) {
+            return Result.failed("标签名不能包含空格");
+        }
+        if (tagMapper.selectOne(new LambdaQueryWrapper<Tag>().eq(Tag::getName, tagParam.getName())) != null) {
+            return Result.failed("标签已存在");
+        }
         Tag existingTag = tagMapper.selectById(id);
         if (existingTag == null) {
             return Result.failed("标签不存在");

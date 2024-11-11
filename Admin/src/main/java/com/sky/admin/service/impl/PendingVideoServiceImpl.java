@@ -15,6 +15,7 @@ import com.sky.pojo.mapper.AdminMapper;
 import com.sky.pojo.mapper.PendingVideoMapper;
 import com.sky.admin.service.PendingVideoService;
 import com.sky.pojo.mapper.VideoMapper;
+import com.sky.pojo.mapper.VideoTagMapper;
 import com.sky.pojo.vo.UserPendingVideo;
 import jakarta.annotation.Resource;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -41,6 +42,8 @@ public class PendingVideoServiceImpl implements PendingVideoService {
     Gson gson;
     @Resource
     InternalMessageService internalMessageService;
+    @Resource
+    VideoTagMapper videoTagMapper;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -49,13 +52,16 @@ public class PendingVideoServiceImpl implements PendingVideoService {
                 !Objects.equals(auditVideoParam.getAuditStatus(), PendingVideoAuditStatus.REJECT)) {
             return Result.failed("审核状态错误");
         }
+
         LambdaQueryWrapper<PendingVideo> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(PendingVideo::getId, auditVideoParam.getVideoId());
         queryWrapper.eq(PendingVideo::getIsAudited, false);
+
         PendingVideo pendingVideo = pendingVideoMapper.selectOne(queryWrapper);
         if (pendingVideo == null) {
             return Result.failed("视频不存在");
         }
+
         Admin admin = adminMapper.selectById(adminId);
         pendingVideo.setAuditStatus(auditVideoParam.getAuditStatus());
         pendingVideo.setAuditComment(auditVideoParam.getAuditComment());
@@ -64,6 +70,7 @@ public class PendingVideoServiceImpl implements PendingVideoService {
         pendingVideo.setAuditUsername(admin.getUsername());
         pendingVideo.setIsAudited(true);
         pendingVideoMapper.updateById(pendingVideo);
+
         Video video = new Video();
         video.setTitle(pendingVideo.getTitle());
         video.setCover(pendingVideo.getCover());
@@ -73,6 +80,14 @@ public class PendingVideoServiceImpl implements PendingVideoService {
         video.setUploadTime(pendingVideo.getUploadTime());
         video.setStatus(VideoStatus.NORMAL);
         videoMapper.insert(video);
+
+        //以 分开tags
+        if (pendingVideo.getTags() != null) {
+            String[] tags = pendingVideo.getTags().split(" ");
+            List<String> tagList = List.of(tags);
+            videoTagMapper.insertBatch(video.getId(), tagList);
+        }
+
         if (Objects.equals(auditVideoParam.getAuditStatus(), PendingVideoAuditStatus.PASS)) {
             String message = "您的视频" + pendingVideo.getTitle() + "已审核通过";
             if (auditVideoParam.getAuditComment() != null) {
@@ -89,6 +104,7 @@ public class PendingVideoServiceImpl implements PendingVideoService {
             internalMessageService.sendSystemMessage(pendingVideo.getUserId(), message,
                     pendingVideo.getId(), InternalMessageReceiverType.PENDING_VIDEO);
         }
+
         kafkaTemplate.send("video_audit", gson.toJson(video));
         return Result.success("审核成功");
     }

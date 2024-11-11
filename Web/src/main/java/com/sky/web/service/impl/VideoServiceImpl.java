@@ -61,6 +61,8 @@ public class VideoServiceImpl implements VideoService {
     UserFavoriteVideoMapper userFavoriteVideoMapper;
     @Resource
     ElasticsearchClient elasticsearchClient;
+    @Resource
+    TagMapper tagMapper;
 
     private static final int LIKE = 1;
     private static final int DISLIKE = 2;
@@ -80,12 +82,25 @@ public class VideoServiceImpl implements VideoService {
         if (!ifFileExist) {
             return Result.failed("视频不存在");
         }
+        if(!uploadPendingVideoParam.getTags().isEmpty()){
+            if (uploadPendingVideoParam.getTags().size() > 5) {
+                return Result.failed("标签数量不能超过5个");
+            }
+            LambdaQueryWrapper<Tag> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.in(Tag::getName, uploadPendingVideoParam.getTags());
+            boolean ifTagExist = tagMapper.exists(queryWrapper);
+            if (!ifTagExist) {
+                return Result.failed("标签不存在");
+            }
+        }
+        String tags = String.join(" ", uploadPendingVideoParam.getTags());
         PendingVideo pendingVideo = new PendingVideo();
         pendingVideo.setTitle(uploadPendingVideoParam.getTitle())
                 .setCover(uploadPendingVideoParam.getCover())
                 .setUrl(uploadPendingVideoParam.getUrl())
                 .setDescription(uploadPendingVideoParam.getDescription())
                 .setUploadTime(LocalDateTime.now())
+                .setTags(tags)
                 .setUserId(userId);
         Integer id = pendingVideoMapper.insert(pendingVideo);
         stringRedisTemplate.opsForZSet().remove(WebRedisConstants.FILE_UPLOAD_RECORD_KEY,

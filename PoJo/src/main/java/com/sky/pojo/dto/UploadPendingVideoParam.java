@@ -4,6 +4,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
+import java.util.List;
+
 @Data
 @Schema(description = "上传待审核视频参数")
 public class UploadPendingVideoParam {
@@ -21,4 +23,7 @@ public class UploadPendingVideoParam {
     @Schema(description = "视频链接")
     @NotBlank(message = "视频链接不可为空")
     private String url;
+
+    @Schema(description = "标签")
+    private List<String> tags;
 }

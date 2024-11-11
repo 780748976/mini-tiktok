@@ -35,4 +35,5 @@ public class UserFavoriteTagServiceImpl implements UserFavoriteTagService {
         });
         userFavoriteTagMapper.batchUpdate(userFavoriteTags);
     }
+
 }
