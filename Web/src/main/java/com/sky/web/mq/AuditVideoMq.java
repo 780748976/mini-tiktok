@@ -3,10 +3,12 @@ package com.sky.web.mq;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.google.gson.Gson;
+import com.sky.pojo.constant.InternalMessageTypeConstants;
 import com.sky.pojo.constant.WebRedisConstants;
 import com.sky.pojo.entity.UserFollow;
 import com.sky.pojo.entity.Video;
 import com.sky.pojo.mapper.UserFollowMapper;
+import com.sky.web.service.InternalMessageService;
 import jakarta.annotation.Resource;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -29,6 +31,8 @@ public class AuditVideoMq {
     StringRedisTemplate stringRedisTemplate;
     @Resource
     UserFollowMapper userFollowMapper;
+    @Resource
+    InternalMessageService internalMessageService;
 
     @KafkaListener(topics = "video_audit", containerFactory = "kafkaListenerContainerFactory1")
     public void auditVideoToEs(String videoJson) throws IOException {
@@ -55,7 +59,7 @@ public class AuditVideoMq {
                     connection.zAdd(
                             (WebRedisConstants.USER_DYNAMICS + userFollow.getFollowerId())
                                     .getBytes(StandardCharsets.UTF_8),
-                            (double) System.currentTimeMillis(),
+                            (double) System.currentTimeMillis() + 60 * 60 * 24 * 7,
                             videoJson.getBytes(StandardCharsets.UTF_8)
                     );
                     count.set(userFollow.getId());
@@ -66,5 +70,6 @@ public class AuditVideoMq {
         }
         stringRedisTemplate.opsForValue().set(WebRedisConstants.VIDEO_PUBLISH_CURSOR + video.getUserId(),
                 count.toString());
+        internalMessageService.sendFollowMessage(userFollowList.stream().map(UserFollow::getFollowerId).toList());
     }
 }

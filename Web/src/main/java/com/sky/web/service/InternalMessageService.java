@@ -3,6 +3,8 @@ package com.sky.web.service;
 import com.sky.common.utils.Result;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 /**
  * 站内信服务接口
  */
@@ -23,4 +25,6 @@ public interface InternalMessageService {
 
     void sendCommentMessage(Long receiverUserId, Long receiverId,
                             Integer receiverType, Integer targetType, Long targetId, Long userId, String comment);
+
+    void sendFollowMessage(List<Long> receiverUserId);
 }

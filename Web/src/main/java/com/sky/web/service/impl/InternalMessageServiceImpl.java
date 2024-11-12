@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import jakarta.annotation.Resource;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class InternalMessageServiceImpl implements InternalMessageService {
@@ -131,6 +132,13 @@ public class InternalMessageServiceImpl implements InternalMessageService {
         internalMessageMapper.insert(internalMessage);
 
         SseEmitterUtil.sendMessage(receiverUserId.toString(), gson.toJson(new SseVo().setType("comment")));
+    }
+
+    @Override
+    public void sendFollowMessage(List<Long> receiverUserId) {
+        receiverUserId.forEach(userId -> {
+            SseEmitterUtil.sendMessage(userId.toString(), gson.toJson(new SseVo().setType("follow")));
+        });
     }
 
 }
