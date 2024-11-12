@@ -93,7 +93,12 @@ spring:
         pool: # Lettuce客户端连接池配置
           max-active: 32 # 最大活动连接数
           max-idle: 16 # 最大空闲连接数
-          min-idle: 8 # 最小空闲连接数spring:
+          min-idle: 8 # 最小空闲连接数spring:# application.yml
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    serialization:
+      write-dates-as-timestamps: false
 
   datasource: # 数据源配置
     driver-class-name: ${sky.datasource.driver-class-name} # JDBC驱动类名

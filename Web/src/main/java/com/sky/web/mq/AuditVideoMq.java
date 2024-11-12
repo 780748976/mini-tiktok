@@ -3,7 +3,6 @@ package com.sky.web.mq;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.google.gson.Gson;
-import com.sky.pojo.constant.InternalMessageTypeConstants;
 import com.sky.pojo.constant.WebRedisConstants;
 import com.sky.pojo.entity.UserFollow;
 import com.sky.pojo.entity.Video;
