@@ -1,6 +1,8 @@
 package com.sky.web.mq;
 
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
+import co.elastic.clients.elasticsearch.core.BulkRequest;
+import co.elastic.clients.elasticsearch.core.BulkResponse;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.google.gson.Gson;
 import com.sky.pojo.constant.WebRedisConstants;
@@ -8,6 +10,7 @@ import com.sky.pojo.entity.UserFollow;
 import com.sky.pojo.entity.Video;
 import com.sky.pojo.mapper.UserFollowMapper;
 import com.sky.web.service.InternalMessageService;
+import com.sky.web.service.VideoService;
 import jakarta.annotation.Resource;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -32,18 +35,16 @@ public class AuditVideoMq {
     UserFollowMapper userFollowMapper;
     @Resource
     InternalMessageService internalMessageService;
+    @Resource
+    VideoService videoService;
 
-    @KafkaListener(topics = "video_audit", containerFactory = "kafkaListenerContainerFactory1")
-    public void auditVideoToEs(String videoJson) throws IOException {
-        Video video = gson.fromJson(videoJson, Video.class);
-        elasticsearchClient.index(i -> i
-                .index("video")
-                .id(video.getId().toString())
-                .document(video)
-        );
+    @KafkaListener(topics = "video_audit", containerFactory = "kafkaListenerBatchContainerFactory")
+    public void auditVideoToEs(List<String> videoJson) throws IOException {
+        List<Video> videoList = videoJson.stream().map(json -> gson.fromJson(json, Video.class)).toList();
+        videoService.appendVideoToEsRetry(videoList);
     }
 
-    @KafkaListener(topics = "video_audit", containerFactory = "kafkaListenerContainerFactory2")
+    @KafkaListener(topics = "video_audit", containerFactory = "kafkaListenerContainerFactory")
     public void sendToUserDynamics(String videoJson) {
         Video video = gson.fromJson(videoJson, Video.class);
         AtomicReference<Long> count = new AtomicReference<>(gson.fromJson(stringRedisTemplate.opsForValue()

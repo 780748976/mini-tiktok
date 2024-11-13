@@ -24,20 +24,21 @@ public class KafkaConsumerConfig {
     private final String group2 = "test2";
  
     @Bean
-    public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, String>> kafkaListenerContainerFactory1() {
+    public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, String>> kafkaListenerBatchContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<String, String>();
         factory.setConsumerFactory(consumerFactory1());
         factory.setConcurrency(4);
-        factory.getContainerProperties().setPollTimeout(4000);
+        factory.getContainerProperties().setPollTimeout(10000);
+        factory.setBatchListener(true);
         return factory;
     }
     
     @Bean
-    public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, String>> kafkaListenerContainerFactory2() {
+    public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<String, String>> kafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, String> factory = new ConcurrentKafkaListenerContainerFactory<String, String>();
         factory.setConsumerFactory(consumerFactory2());
         factory.setConcurrency(4);
-        factory.getContainerProperties().setPollTimeout(4000);
+        factory.getContainerProperties().setPollTimeout(10000);
         return factory;
     }
 

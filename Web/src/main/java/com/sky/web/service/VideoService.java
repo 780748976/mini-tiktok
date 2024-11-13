@@ -4,7 +4,6 @@ import com.sky.common.utils.Result;
 import com.sky.pojo.dto.UploadPendingVideoParam;
 import com.sky.pojo.entity.Video;
 import com.sky.pojo.vo.UserVideo;
-import jakarta.validation.constraints.NotBlank;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -34,4 +33,6 @@ public interface VideoService {
     Result getBrowseRecordList(Long userId, Integer page, Integer size);
 
     Result searchVideo(String keyword, Integer page, Integer size, String sortType) throws IOException;
+
+    void appendVideoToEsRetry(List<Video> videoList) throws IOException;
 }

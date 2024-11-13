@@ -7,10 +7,12 @@ import com.sky.pojo.mapper.UserMapper;
 import jakarta.annotation.Resource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Objects;
 
+@Component
 public class CleanUserRedisDynamics {
 
     @Resource
@@ -19,7 +21,7 @@ public class CleanUserRedisDynamics {
     UserMapper userMapper;
 
     //每天凌晨4点清理用户动态
-    @Scheduled(cron = "0 0 1 * * ?")
+    @Scheduled(cron = "0 0 4 * * ?")
     public void cleanUserDynamics() {
         LambdaQueryWrapper<User> wrapper = new LambdaQueryWrapper<User>().select(User::getId);
         List<Long> userIdList = userMapper.selectList(wrapper).stream()

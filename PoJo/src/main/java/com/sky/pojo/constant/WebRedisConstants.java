@@ -16,4 +16,6 @@ public class WebRedisConstants {
     public static final String USER_DYNAMICS = "UserDynamics:";
     //用户发布视频到follower时的游标
     public static final String VIDEO_PUBLISH_CURSOR = "VideoPublishCursor:";
+    //需要同步到Es的视频名单记录
+    public static final String VIDEO_APPEND_LIST = "VideoAppendList:";
 }

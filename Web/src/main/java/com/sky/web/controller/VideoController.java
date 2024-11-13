@@ -91,7 +91,7 @@ public class VideoController {
     @Operation(summary = "分页搜索视频")
     @GetMapping("/search_video")
     public Result searchVideo(@RequestParam @NotBlank String keyword,
-                              @RequestParam(defaultValue = "10") Integer page,
+                              @RequestParam(defaultValue = "1") Integer page,
                               @RequestParam(defaultValue = "10") Integer size,
                               @RequestParam @NotBlank String sortType) throws IOException {
         return videoService.searchVideo(keyword, page, size, sortType);

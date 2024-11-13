@@ -3,6 +3,8 @@ package com.sky.web.service.impl;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.FieldSort;
 import co.elastic.clients.elasticsearch._types.SortOrder;
+import co.elastic.clients.elasticsearch.core.BulkRequest;
+import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -20,7 +22,6 @@ import com.sky.web.service.InternalMessageService;
 import com.sky.web.service.UserFavoriteTagService;
 import com.sky.web.service.VideoService;
 import jakarta.annotation.Resource;
-import jakarta.validation.constraints.NotBlank;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -134,6 +135,7 @@ public class VideoServiceImpl implements VideoService {
                 ErrorLogUtil.save(ex);
             }
         });
+        stringRedisTemplate.opsForSet().add(WebRedisConstants.VIDEO_APPEND_LIST, videoId.toString());
         return Result.success(userVideo);
     }
 
@@ -176,7 +178,8 @@ public class VideoServiceImpl implements VideoService {
                 .setActionTime(LocalDateTime.now());
         userVideoActionMapper.insert(newAction);
         internalMessageService.sendLikeMessage(video.getUserId(), video.getId(),
-                InternalMessageReceiverType.VIDEO, Long.valueOf(userId));
+                InternalMessageReceiverType.VIDEO, userId);
+        stringRedisTemplate.opsForSet().add(WebRedisConstants.VIDEO_APPEND_LIST, videoId.toString());
         return Result.success("点赞成功");
     }
 
@@ -293,7 +296,8 @@ public class VideoServiceImpl implements VideoService {
         userVideoActionMapper.insert(action);
 
         internalMessageService.sendDislikeMessage(video.getUserId(), video.getId(),
-                InternalMessageReceiverType.VIDEO, Long.valueOf(userId));
+                InternalMessageReceiverType.VIDEO, userId);
+        stringRedisTemplate.opsForSet().add(WebRedisConstants.VIDEO_APPEND_LIST, videoId.toString());
         return Result.success("点踩成功");
     }
 
@@ -382,5 +386,28 @@ public class VideoServiceImpl implements VideoService {
                 .from((page - 1) * size)
                 .size(size), Video.class);
         return Result.success(videos.hits().hits());
+    }
+
+    @Override
+    public void appendVideoToEsRetry(List<Video> videoList) throws IOException {
+        BulkRequest.Builder bulkRequestBuilder = new BulkRequest.Builder();
+        for (Video video : videoList) {
+            bulkRequestBuilder.operations(op -> op
+                    .index(idx -> idx
+                            .index("videos")
+                            .id(video.getId().toString())
+                            .document(video)
+                    )
+            );
+        }
+        BulkResponse bulkResponse = elasticsearchClient.bulk(bulkRequestBuilder.build());
+        List<Video> failedVideoList = bulkResponse.items().stream()
+                .filter(item -> item.error() != null)
+                .map(item -> videoList.get(bulkResponse.items().indexOf(item)))
+                .toList();
+        // 重试
+        if (!failedVideoList.isEmpty()) {
+            appendVideoToEsRetry(failedVideoList);
+        }
     }
 }
