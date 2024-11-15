@@ -35,8 +35,6 @@ public class AuditVideoMq {
     UserFollowMapper userFollowMapper;
     @Resource
     InternalMessageService internalMessageService;
-    @Resource
-    VideoService videoService;
 
     @KafkaListener(topics = "video_audit", containerFactory = "kafkaListenerBatchContainerFactory")
     public void auditVideoToEs(List<String> videoJson) throws IOException {

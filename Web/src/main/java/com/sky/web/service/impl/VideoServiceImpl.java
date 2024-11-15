@@ -3,8 +3,6 @@ package com.sky.web.service.impl;
 import co.elastic.clients.elasticsearch.ElasticsearchClient;
 import co.elastic.clients.elasticsearch._types.FieldSort;
 import co.elastic.clients.elasticsearch._types.SortOrder;
-import co.elastic.clients.elasticsearch.core.BulkRequest;
-import co.elastic.clients.elasticsearch.core.BulkResponse;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -13,6 +11,7 @@ import com.sky.common.utils.ErrorLogUtil;
 import com.sky.common.utils.PageInfo;
 import com.sky.common.utils.Result;
 import com.sky.pojo.constant.InternalMessageReceiverType;
+import com.sky.pojo.constant.UserChangeProbabilityType;
 import com.sky.pojo.constant.WebRedisConstants;
 import com.sky.pojo.dto.UploadPendingVideoParam;
 import com.sky.pojo.entity.*;
@@ -129,7 +128,7 @@ public class VideoServiceImpl implements VideoService {
                         .setWatchTime(LocalDateTime.now());
                 userWatchRecordMapper.insert(userWatchRecord);
                 //增加用户观看视频标签
-                userFavoriteTagService.viewVideoAddProbability(video.getId(), userId);
+                userFavoriteTagService.changeProbability(video.getId(), userId, UserChangeProbabilityType.PLAY);
             }
             catch (Exception ex){
                 ErrorLogUtil.save(ex);

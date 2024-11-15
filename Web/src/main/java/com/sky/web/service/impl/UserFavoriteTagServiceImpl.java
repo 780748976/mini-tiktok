@@ -1,6 +1,8 @@
 package com.sky.web.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
+import com.sky.pojo.constant.UserChangeProbabilityType;
 import com.sky.pojo.entity.UserFavoriteTag;
 import com.sky.pojo.entity.VideoTag;
 import com.sky.pojo.mapper.TagMapper;
@@ -18,22 +20,46 @@ public class UserFavoriteTagServiceImpl implements UserFavoriteTagService {
     @Resource
     UserFavoriteTagMapper userFavoriteTagMapper;
     @Resource
-    TagMapper tagMapper;
-    @Resource
     VideoTagMapper videoTagMapper;
 
+    //Type: 0 播放 1 点赞 2 取消点赞 3 点踩 4 取消点踩 5 收藏 6 取消收藏 对应UserChangeProbabilityType
     @Override
-    public void viewVideoAddProbability(Long videoId, Long userId) {
+    public void changeProbability(Long videoId, Long userId, Integer Type) {
+        int probability;
+        if (Type == UserChangeProbabilityType.PLAY){
+            probability = 1;
+        }
+        else if (Type == UserChangeProbabilityType.LIKE){
+            probability = 2;
+        }
+        else if (Type == UserChangeProbabilityType.UNLIKE){
+            probability = -2;
+        }
+        else if (Type == UserChangeProbabilityType.DISLIKE){
+            probability = -2;
+        }
+        else if (Type == UserChangeProbabilityType.UNDISLIKE){
+            probability = 2;
+        }
+        else if (Type == UserChangeProbabilityType.FAVORITE){
+            probability = 3;
+        }
+        else if (Type == UserChangeProbabilityType.UNFAVORITE){
+            probability = -3;
+        } else {
+            probability = 0;
+        }
         List<VideoTag> videoTags = videoTagMapper.selectList(
                 new LambdaQueryWrapper<VideoTag>().eq(VideoTag::getVideoId, videoId));
         LambdaQueryWrapper<UserFavoriteTag> queryWrapper = new LambdaQueryWrapper<>();
         queryWrapper.eq(UserFavoriteTag::getUserId, userId)
                 .in(UserFavoriteTag::getTagId, videoTags.stream().map(VideoTag::getTagId).toArray());
         List<UserFavoriteTag> userFavoriteTags = userFavoriteTagMapper.selectList(queryWrapper);
-        userFavoriteTags.forEach(userFavoriteTag -> {
-            userFavoriteTag.setProbability(userFavoriteTag.getProbability() + 1);
-        });
-        userFavoriteTagMapper.batchUpdate(userFavoriteTags);
+        LambdaUpdateWrapper<UserFavoriteTag> updateWrapper = new LambdaUpdateWrapper<>();
+        updateWrapper.eq(UserFavoriteTag::getUserId, userId)
+                .in(UserFavoriteTag::getTagId, userFavoriteTags.stream().map(UserFavoriteTag::getTagId).toArray())
+                .setSql("probability = probability + " + probability);
+        userFavoriteTagMapper.update(null, updateWrapper);
     }
 
 }
