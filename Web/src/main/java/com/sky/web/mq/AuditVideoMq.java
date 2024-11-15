@@ -41,7 +41,29 @@ public class AuditVideoMq {
     @KafkaListener(topics = "video_audit", containerFactory = "kafkaListenerBatchContainerFactory")
     public void auditVideoToEs(List<String> videoJson) throws IOException {
         List<Video> videoList = videoJson.stream().map(json -> gson.fromJson(json, Video.class)).toList();
-        videoService.appendVideoToEsRetry(videoList);
+        appendVideoToEsRetry(videoList);
+    }
+
+    void appendVideoToEsRetry(List<Video> videoList) throws IOException {
+        BulkRequest.Builder bulkRequestBuilder = new BulkRequest.Builder();
+        for (Video video : videoList) {
+            bulkRequestBuilder.operations(op -> op
+                    .index(idx -> idx
+                            .index("videos")
+                            .id(video.getId().toString())
+                            .document(video)
+                    )
+            );
+        }
+        BulkResponse bulkResponse = elasticsearchClient.bulk(bulkRequestBuilder.build());
+        List<Video> failedVideoList = bulkResponse.items().stream()
+                .filter(item -> item.error() != null)
+                .map(item -> videoList.get(bulkResponse.items().indexOf(item)))
+                .toList();
+        // 重试
+        if (!failedVideoList.isEmpty()) {
+            appendVideoToEsRetry(failedVideoList);
+        }
     }
 
     @KafkaListener(topics = "video_audit", containerFactory = "kafkaListenerContainerFactory")

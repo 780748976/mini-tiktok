@@ -33,6 +33,4 @@ public interface VideoService {
     Result getBrowseRecordList(Long userId, Integer page, Integer size);
 
     Result searchVideo(String keyword, Integer page, Integer size, String sortType) throws IOException;
-
-    void appendVideoToEsRetry(List<Video> videoList) throws IOException;
 }
