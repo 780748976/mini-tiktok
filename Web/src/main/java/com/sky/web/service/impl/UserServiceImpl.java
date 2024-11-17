@@ -224,7 +224,9 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result signIn(Long userId) {
-        if(stringRedisTemplate.opsForValue().get(WebRedisConstants.USER_TODAY_SIGN_IN_KEY + userId) != null){
+        boolean isSignIn = Boolean.TRUE.equals(
+                stringRedisTemplate.opsForSet().isMember(WebRedisConstants.USER_TODAY_SIGN_IN_KEY, userId));
+        if(isSignIn){
             return Result.failed("今日已签到");
         }
         //获取现在时间
@@ -239,8 +241,7 @@ public class UserServiceImpl implements UserService {
         userInfo.setCoins(userInfo.getCoins() + 1)
                 .setExperience(userInfo.getExperience() + 10);
         userInfoMapper.updateById(userInfo);
-        stringRedisTemplate.opsForValue().set(WebRedisConstants.USER_TODAY_SIGN_IN_KEY + userId,
-                "1", seconds, TimeUnit.SECONDS);
+        stringRedisTemplate.opsForSet().add(WebRedisConstants.USER_TODAY_SIGN_IN_KEY, String.valueOf(userId));
         return Result.success("签到成功");
     }
 }

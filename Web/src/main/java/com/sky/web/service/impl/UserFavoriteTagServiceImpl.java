@@ -5,7 +5,6 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.sky.pojo.constant.UserChangeProbabilityType;
 import com.sky.pojo.entity.UserFavoriteTag;
 import com.sky.pojo.entity.VideoTag;
-import com.sky.pojo.mapper.TagMapper;
 import com.sky.pojo.mapper.UserFavoriteTagMapper;
 import com.sky.pojo.mapper.VideoTagMapper;
 import com.sky.web.service.UserFavoriteTagService;

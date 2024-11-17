@@ -125,7 +125,7 @@
         <!-- 阿里云OSS SDK -->
         <dependency>
             <groupId>com.aliyun.oss</groupId>
-            <artifactId>aliyun-sdk-oss</artifactId>
+            <artifactId>aliyun-sdk-oss</artifactId>c
             <version>3.15.1</version>
         </dependency>
 
