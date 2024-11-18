@@ -96,4 +96,12 @@ public class VideoController {
                               @RequestParam @NotBlank String sortType) throws IOException {
         return videoService.searchVideo(keyword, page, size, sortType);
     }
+
+    @GetMapping("/get_user_like_video_list")
+    @Operation(summary = "分页获取用户点赞视频列表")
+    public Result getUserLikeVideoList(@RequestParam(defaultValue = "1") Integer page,
+                                       @RequestParam(defaultValue = "10") Integer size) {
+        Long userId = Long.valueOf(SecurityContextHolder.getContext().getAuthentication().getName());
+        return videoService.getUserLikeVideoList(userId, page, size);
+    }
 }

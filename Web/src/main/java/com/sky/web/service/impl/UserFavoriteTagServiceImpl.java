@@ -45,8 +45,15 @@ public class UserFavoriteTagServiceImpl implements UserFavoriteTagService {
         }
         else if (Type == UserChangeProbabilityType.UNFAVORITE){
             probability = -3;
-        } else {
-            probability = 0;
+        }
+        else if (Type == UserChangeProbabilityType.LIKE_TO_DISLIKE){
+            probability = -4;
+        }
+        else if (Type == UserChangeProbabilityType.DISLIKE_TO_LIKE){
+            probability = 4;
+        }
+        else {
+            return;
         }
         List<VideoTag> videoTags = videoTagMapper.selectList(
                 new LambdaQueryWrapper<VideoTag>().eq(VideoTag::getVideoId, videoId));

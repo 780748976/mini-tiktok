@@ -63,6 +63,8 @@ public class VideoServiceImpl implements VideoService {
     ElasticsearchClient elasticsearchClient;
     @Resource
     TagMapper tagMapper;
+    @Resource
+    UserVideoAction userVideoAction;
 
     private static final int LIKE = 1;
     private static final int DISLIKE = 2;
@@ -82,7 +84,7 @@ public class VideoServiceImpl implements VideoService {
         if (!ifFileExist) {
             return Result.failed("视频不存在");
         }
-        if(!uploadPendingVideoParam.getTags().isEmpty()){
+        if (!uploadPendingVideoParam.getTags().isEmpty()) {
             if (uploadPendingVideoParam.getTags().size() > 5) {
                 return Result.failed("标签数量不能超过5个");
             }
@@ -129,8 +131,7 @@ public class VideoServiceImpl implements VideoService {
                 userWatchRecordMapper.insert(userWatchRecord);
                 //增加用户观看视频标签
                 userFavoriteTagService.changeProbability(video.getId(), userId, UserChangeProbabilityType.PLAY);
-            }
-            catch (Exception ex){
+            } catch (Exception ex) {
                 ErrorLogUtil.save(ex);
             }
         });
@@ -156,15 +157,30 @@ public class VideoServiceImpl implements VideoService {
             // 取消点赞
             videoMapper.cancelLike(videoId);
             userVideoActionMapper.deleteById(action.getId());
+            asyncServiceExecutor.execute(() -> {
+                try {
+                    userFavoriteTagService.changeProbability(video.getId(), userId,
+                            UserChangeProbabilityType.UNLIKE);
+                } catch (Exception ex) {
+                    ErrorLogUtil.save(ex);
+                }
+            });
             return Result.failed("取消点赞成功");
-        }
-        else if (action != null && action.getActionType() == DISLIKE) {
+        } else if (action != null && action.getActionType() == DISLIKE) {
             // 取消点踩并进行点赞
             videoMapper.cancelDislike(videoId);
             videoMapper.like(videoId); // 增加点赞数
             action.setActionType(LIKE);
             action.setActionTime(LocalDateTime.now());
             userVideoActionMapper.updateById(action);
+            asyncServiceExecutor.execute(() -> {
+                try {
+                    userFavoriteTagService.changeProbability(video.getId(), userId,
+                            UserChangeProbabilityType.DISLIKE_TO_LIKE);
+                } catch (Exception ex) {
+                    ErrorLogUtil.save(ex);
+                }
+            });
             return Result.success("取消点踩并点赞成功");
         }
 
@@ -179,6 +195,13 @@ public class VideoServiceImpl implements VideoService {
         internalMessageService.sendLikeMessage(video.getUserId(), video.getId(),
                 InternalMessageReceiverType.VIDEO, userId);
         stringRedisTemplate.opsForSet().add(WebRedisConstants.VIDEO_APPEND_LIST, videoId.toString());
+        asyncServiceExecutor.execute(() -> {
+            try {
+                userFavoriteTagService.changeProbability(video.getId(), userId, UserChangeProbabilityType.LIKE);
+            } catch (Exception ex) {
+                ErrorLogUtil.save(ex);
+            }
+        });
         return Result.success("点赞成功");
     }
 
@@ -273,15 +296,30 @@ public class VideoServiceImpl implements VideoService {
             //取消点踩
             videoMapper.cancelDislike(videoId);
             userVideoActionMapper.deleteById(action.getId());
+            asyncServiceExecutor.execute(() -> {
+                try {
+                    userFavoriteTagService.changeProbability(video.getId(), userId,
+                            UserChangeProbabilityType.UNDISLIKE);
+                } catch (Exception ex) {
+                    ErrorLogUtil.save(ex);
+                }
+            });
             return Result.success("取消点踩成功");
-        }
-        else if (action != null && action.getActionType() == LIKE) {
+        } else if (action != null && action.getActionType() == LIKE) {
             //取消点赞 点踩
             videoMapper.cancelLike(videoId);
             videoMapper.dislike(videoId);
             action.setActionType(DISLIKE);
             action.setActionTime(LocalDateTime.now());
             userVideoActionMapper.updateById(action);
+            asyncServiceExecutor.execute(() -> {
+                try {
+                    userFavoriteTagService.changeProbability(video.getId(), userId,
+                            UserChangeProbabilityType.LIKE_TO_DISLIKE);
+                } catch (Exception ex) {
+                    ErrorLogUtil.save(ex);
+                }
+            });
             return Result.success("点踩成功");
         }
 
@@ -295,6 +333,13 @@ public class VideoServiceImpl implements VideoService {
         userVideoActionMapper.insert(action);
 
         stringRedisTemplate.opsForSet().add(WebRedisConstants.VIDEO_APPEND_LIST, videoId.toString());
+        asyncServiceExecutor.execute(() -> {
+            try {
+                userFavoriteTagService.changeProbability(video.getId(), userId, UserChangeProbabilityType.DISLIKE);
+            } catch (Exception ex) {
+                ErrorLogUtil.save(ex);
+            }
+        });
         return Result.success("点踩成功");
     }
 
@@ -317,6 +362,13 @@ public class VideoServiceImpl implements VideoService {
                 .setCreateTime(LocalDateTime.now());
 
         userFavoriteVideoMapper.insert(favorite);
+        asyncServiceExecutor.execute(() -> {
+            try {
+                userFavoriteTagService.changeProbability(videoId, userId, UserChangeProbabilityType.FAVORITE);
+            } catch (Exception ex) {
+                ErrorLogUtil.save(ex);
+            }
+        });
 
         return Result.success("收藏成功");
     }
@@ -331,6 +383,13 @@ public class VideoServiceImpl implements VideoService {
         );
 
         if (deleted > 0) {
+            asyncServiceExecutor.execute(() -> {
+                try {
+                    userFavoriteTagService.changeProbability(videoId, userId, UserChangeProbabilityType.UNFAVORITE);
+                } catch (Exception ex) {
+                    ErrorLogUtil.save(ex);
+                }
+            });
             return Result.success("取消收藏成功");
         } else {
             return Result.failed("收藏记录不存在");
@@ -360,6 +419,7 @@ public class VideoServiceImpl implements VideoService {
     @Override
     public Result searchVideo(String keyword, Integer page, Integer size, String sortType) throws IOException {
         switch (sortType) {
+            case "default" -> sortType = null;
             case "like" -> sortType = "likes";
             case "view" -> sortType = "views";
             case "time" -> sortType = "uploadTime";
@@ -368,6 +428,19 @@ public class VideoServiceImpl implements VideoService {
             }
         }
         String finalSortType = sortType;
+        if (sortType == null) {
+            SearchResponse<Video> videos = elasticsearchClient.search(i -> i
+                    .index("video")
+                    .query(q -> q
+                            .match(m -> m
+                                    .field("title")
+                                    .query(keyword)
+                            )
+                    )
+                    .from((page - 1) * size)
+                    .size(size), Video.class);
+            return Result.success(videos.hits().hits());
+        }
         SearchResponse<Video> videos = elasticsearchClient.search(i -> i
                 .index("video")
                 .query(q -> q
@@ -383,5 +456,16 @@ public class VideoServiceImpl implements VideoService {
                 .from((page - 1) * size)
                 .size(size), Video.class);
         return Result.success(videos.hits().hits());
+    }
+
+    @Override
+    public Result getUserLikeVideoList(Long userId, Integer page, Integer size) {
+        LambdaQueryWrapper<UserVideoAction> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.eq(UserVideoAction::getUserId, userId)
+                .eq(UserVideoAction::getActionType, LIKE)
+                .orderByDesc(UserVideoAction::getActionTime);
+        Page<UserVideoAction> userVideoActionList =
+                userVideoActionMapper.selectPage(new Page<>(page, size), queryWrapper);
+        return Result.success(PageInfo.restPage(userVideoActionList));
     }
 }
