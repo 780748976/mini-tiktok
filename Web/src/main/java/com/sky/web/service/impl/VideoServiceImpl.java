@@ -491,7 +491,7 @@ public class VideoServiceImpl implements VideoService {
             randomQueryWrapper.orderByDesc(Tag::getId)
                     .last("limit 1");
             Long maxId = tagMapper.selectOne(randomQueryWrapper).getId();
-            //生成随机数从
+            //生成随机数
             Long randomId = random.nextLong(maxId.intValue());
             randomQueryWrapper.clear();
             randomQueryWrapper.orderByAsc(Tag::getId)
@@ -528,6 +528,34 @@ public class VideoServiceImpl implements VideoService {
                 .orderByDesc(Video::getLikes)
                 .last("limit 10");
         List<Video> videos = videoMapper.selectList(videoQueryWrapper);
+        //查询用户12小时以内的播放记录
+        LambdaQueryWrapper<UserWatchRecord> watchRecordQueryWrapper = new LambdaQueryWrapper<>();
+        watchRecordQueryWrapper.eq(UserWatchRecord::getUserId, userId)
+                .ge(UserWatchRecord::getWatchTime, LocalDateTime.now().minusHours(12))
+                .in(UserWatchRecord::getVideoId, videos.stream().map(Video::getId).toArray());
+        //完成去重
+        List<UserWatchRecord> userWatchRecords = userWatchRecordMapper.selectList(watchRecordQueryWrapper);
+        for (UserWatchRecord userWatchRecord : userWatchRecords) {
+            videos.removeIf(video -> video.getId().equals(userWatchRecord.getVideoId()));
+        }
+
+        //重新获取直到满足10个
+        while (userWatchRecords.size() < 10) {
+            videoQueryWrapper.clear();
+            videoQueryWrapper.in(Video::getId, videoIds)
+                    .orderByDesc(Video::getLikes)
+                    .last("limit " + (10 - userWatchRecords.size()));
+            List<Video> tempVideos = videoMapper.selectList(videoQueryWrapper);
+            for (Video video : tempVideos) {
+                if (userWatchRecords.stream().noneMatch(record -> record.getVideoId().equals(video.getId()))) {
+                    videos.add(video);
+                }
+            }
+            if (videos.size() >= 10) {
+                break;
+            }
+        }
+
         return Result.success(fillVideo(videos, userId));
     }
 }

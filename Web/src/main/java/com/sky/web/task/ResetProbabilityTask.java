@@ -23,8 +23,6 @@ import java.util.Set;
 public class ResetProbabilityTask {
 
     @Resource
-    UserMapper userMapper;
-    @Resource
     UserFavoriteTagMapper userFavoriteTagMapper;
     @Resource
     StringRedisTemplate stringRedisTemplate;
