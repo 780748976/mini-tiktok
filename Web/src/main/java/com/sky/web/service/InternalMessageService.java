@@ -1,8 +1,5 @@
 package com.sky.web.service;
 
-import com.sky.common.utils.Result;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 
 /**
@@ -13,11 +10,8 @@ public interface InternalMessageService {
     void sendLikeMessage(Long receiverUserId, Long receiverId,
                          Integer receiverType, Long userId);
 
-    void sendDislikeMessage(Long receiverUserId, Long receiverId,
-                            Integer receiverType, Long userId);
-
     void sendMentionMessage(Long receiverUserId, Long receiverId,
-                            Integer receiverType, Long targetId, Long userId);
+                            Integer receiverType, Long targetId, Long userId, String content);
 
     void sendSystemMessage(Long receiverUserId, String message);
 
@@ -26,5 +20,5 @@ public interface InternalMessageService {
     void sendCommentMessage(Long receiverUserId, Long receiverId,
                             Integer receiverType, Integer targetType, Long targetId, Long userId, String comment);
 
-    void sendFollowMessage(List<Long> receiverUserId);
+    void sendDynamicsMessage(List<Long> receiverUserId);
 }

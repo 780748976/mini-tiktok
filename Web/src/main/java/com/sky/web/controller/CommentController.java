@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.annotation.Resource;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,24 +24,21 @@ public class CommentController {
     @PostMapping("/add")
     @Operation(summary = "在视频下添加评论")
     public Result addComment(@Valid @RequestBody CommentParam commentParam) {
-        return commentService.addComment(commentParam);
-    }
-
-    @PostMapping("/reply")
-    @Operation(summary = "在评论下添加回复")
-    public Result replyComment(@Valid @RequestBody CommentParam commentParam) {
-        return commentService.replyComment(commentParam);
+        Long userId = Long.valueOf(SecurityContextHolder.getContext().getAuthentication().getName());
+        return commentService.addComment(commentParam, userId);
     }
 
     @PostMapping("/like")
     @Operation(summary = "点赞评论")
     public Result likeComment(@RequestParam @Min(1) Long commentId) {
-        return commentService.likeComment(commentId);
+        Long userId = Long.valueOf(SecurityContextHolder.getContext().getAuthentication().getName());
+        return commentService.likeComment(commentId, userId);
     }
 
     @PostMapping("/dislike")
     @Operation(summary = "点踩评论")
     public Result dislikeComment(@RequestParam @Min(1) Long commentId) {
-        return commentService.dislikeComment(commentId);
+        Long userId = Long.valueOf(SecurityContextHolder.getContext().getAuthentication().getName());
+        return commentService.dislikeComment(commentId, userId);
     }
 }

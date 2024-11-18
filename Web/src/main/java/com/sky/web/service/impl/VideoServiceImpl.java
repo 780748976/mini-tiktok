@@ -294,8 +294,6 @@ public class VideoServiceImpl implements VideoService {
                 .setActionTime(LocalDateTime.now());
         userVideoActionMapper.insert(action);
 
-        internalMessageService.sendDislikeMessage(video.getUserId(), video.getId(),
-                InternalMessageReceiverType.VIDEO, userId);
         stringRedisTemplate.opsForSet().add(WebRedisConstants.VIDEO_APPEND_LIST, videoId.toString());
         return Result.success("点踩成功");
     }

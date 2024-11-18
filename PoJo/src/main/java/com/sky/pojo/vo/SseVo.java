@@ -11,6 +11,6 @@ public class SseVo {
     @Schema(description = "内容")
     private String content;
 
-    @Schema(description = "消息类型 system通知 comment评论通知 like点赞通知 mention@通知 message消息")
+    @Schema(description = "消息类型 system通知 comment评论通知 like点赞通知 mention@通知 message消息 dynamic动态通知")
     private String type;
 }

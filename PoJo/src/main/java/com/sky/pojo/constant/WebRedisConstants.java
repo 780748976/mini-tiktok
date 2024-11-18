@@ -18,4 +18,11 @@ public class WebRedisConstants {
     public static final String VIDEO_PUBLISH_CURSOR = "VideoPublishCursor:";
     //需要同步到Es的视频名单记录
     public static final String VIDEO_APPEND_LIST = "VideoAppendList:";
+    //system通知 comment评论通知 like点赞通知 mention@通知 message消息 dynamic动态通知
+    public static final String SYSTEM_MESSAGE = "SystemMessage:";
+    public static final String COMMENT_MESSAGE = "CommentMessage:";
+    public static final String LIKE_MESSAGE = "LikeMessage:";
+    public static final String MENTION_MESSAGE = "MentionMessage:";
+    public static final String MESSAGE_MESSAGE = "MessageMessage:";
+    public static final String DYNAMIC_MESSAGE = "DynamicMessage:";
 }

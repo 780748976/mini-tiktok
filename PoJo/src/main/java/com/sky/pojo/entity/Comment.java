@@ -21,7 +21,7 @@ public class Comment {
     private Long videoId;
 
     @Schema(description = "用户ID")
-    private String userId;
+    private Long userId;
 
     @Schema(description = "父评论ID，顶级评论为null")
     private Long parentId;

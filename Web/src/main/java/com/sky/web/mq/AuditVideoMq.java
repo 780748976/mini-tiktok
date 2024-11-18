@@ -10,7 +10,6 @@ import com.sky.pojo.entity.UserFollow;
 import com.sky.pojo.entity.Video;
 import com.sky.pojo.mapper.UserFollowMapper;
 import com.sky.web.service.InternalMessageService;
-import com.sky.web.service.VideoService;
 import jakarta.annotation.Resource;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -90,6 +89,6 @@ public class AuditVideoMq {
         }
         stringRedisTemplate.opsForValue().set(WebRedisConstants.VIDEO_PUBLISH_CURSOR + video.getUserId(),
                 count.toString());
-        internalMessageService.sendFollowMessage(userFollowList.stream().map(UserFollow::getFollowerId).toList());
+        internalMessageService.sendDynamicsMessage(userFollowList.stream().map(UserFollow::getFollowerId).toList());
     }
 }
