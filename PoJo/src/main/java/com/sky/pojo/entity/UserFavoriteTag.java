@@ -19,10 +19,10 @@ public class UserFavoriteTag {
     private Long id;
 
     @Schema(description = "用户ID")
-    private String userId;
+    private Long userId;
 
     @Schema(description = "视频标签ID")
-    private Integer tagId;
+    private Long tagId;
 
     @Schema(description = "概率分析")
     private Integer probability;

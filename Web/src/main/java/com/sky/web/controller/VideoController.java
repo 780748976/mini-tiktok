@@ -1,5 +1,6 @@
 package com.sky.web.controller;
 
+import com.sky.common.utils.CheckAnonymousUserUtil;
 import com.sky.common.utils.Result;
 import com.sky.pojo.dto.UploadPendingVideoParam;
 import com.sky.web.service.VideoService;
@@ -103,5 +104,12 @@ public class VideoController {
                                        @RequestParam(defaultValue = "10") Integer size) {
         Long userId = Long.valueOf(SecurityContextHolder.getContext().getAuthentication().getName());
         return videoService.getUserLikeVideoList(userId, page, size);
+    }
+
+    @Operation(summary = "获取推荐视频")
+    @GetMapping("/get_recommend_video_list")
+    public Result getRecommendVideoList() throws ExecutionException, InterruptedException {
+        Long userId = CheckAnonymousUserUtil.check(SecurityContextHolder.getContext().getAuthentication().getName());
+        return videoService.getRecommendVideoList(userId);
     }
 }

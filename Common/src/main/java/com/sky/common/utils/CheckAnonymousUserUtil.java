@@ -1,7 +1,10 @@
 package com.sky.common.utils;
 
 public class CheckAnonymousUserUtil {
-    public static boolean check(String token) {
-        return token.equals("anonymousUser");
+    public static Long check(String token) {
+        if (token.equals("anonymousUser")){
+            return 0L;
+        }
+        return Long.parseLong(token);
     }
 }

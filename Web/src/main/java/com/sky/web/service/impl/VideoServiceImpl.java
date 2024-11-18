@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -64,7 +65,9 @@ public class VideoServiceImpl implements VideoService {
     @Resource
     TagMapper tagMapper;
     @Resource
-    UserVideoAction userVideoAction;
+    VideoTagMapper videoTagMapper;
+    @Resource
+    UserFavoriteTagMapper userFavoriteTagMapper;
 
     private static final int LIKE = 1;
     private static final int DISLIKE = 2;
@@ -467,5 +470,64 @@ public class VideoServiceImpl implements VideoService {
         Page<UserVideoAction> userVideoActionList =
                 userVideoActionMapper.selectPage(new Page<>(page, size), queryWrapper);
         return Result.success(PageInfo.restPage(userVideoActionList));
+    }
+
+    @Override
+    public Result getRecommendVideoList(Long userId) throws ExecutionException, InterruptedException {
+        List<UserFavoriteTag> userFavoriteTags = new ArrayList<>();
+        if (userId != 0) {
+            //获取用户喜欢的标签前十
+            LambdaQueryWrapper<UserFavoriteTag> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(UserFavoriteTag::getUserId, userId)
+                    .orderByDesc(UserFavoriteTag::getProbability)
+                    .last("limit 5");
+            userFavoriteTags = userFavoriteTagMapper.selectList(queryWrapper);
+        }
+        //如果不足十个则随机获取
+        Random random = new Random();
+        if (userFavoriteTags.size() < 7) {
+            //获取Tag中最大Id
+            LambdaQueryWrapper<Tag> randomQueryWrapper = new LambdaQueryWrapper<>();
+            randomQueryWrapper.orderByDesc(Tag::getId)
+                    .last("limit 1");
+            Long maxId = tagMapper.selectOne(randomQueryWrapper).getId();
+            //生成随机数从
+            Long randomId = random.nextLong(maxId.intValue());
+            randomQueryWrapper.clear();
+            randomQueryWrapper.orderByAsc(Tag::getId)
+                    .ge(Tag::getId, randomId)
+                    .notIn(Tag::getId, userFavoriteTags.stream().map(UserFavoriteTag::getTagId).toArray())
+                    .last("limit " + (7 - userFavoriteTags.size()));
+            List<Tag> randomTags = tagMapper.selectList(randomQueryWrapper);
+            for (Tag tag : randomTags) {
+                UserFavoriteTag userFavoriteTag = new UserFavoriteTag();
+                userFavoriteTag.setUserId(userId)
+                        .setTagId(tag.getId())
+                        .setProbability(0);
+                userFavoriteTags.add(userFavoriteTag);
+            }
+        }
+        //获取最大Id
+        LambdaQueryWrapper<VideoTag> videoTagQueryWrapper = new LambdaQueryWrapper<>();
+        videoTagQueryWrapper.in(VideoTag::getTagId, userFavoriteTags.stream().map(UserFavoriteTag::getTagId).toArray())
+                .orderByDesc(VideoTag::getId).last("limit 1");
+        Long maxId = videoTagMapper.selectOne(videoTagQueryWrapper).getId();
+        Long randomId = random.nextLong(maxId.intValue());
+        videoTagQueryWrapper.clear();
+        videoTagQueryWrapper.orderByAsc(VideoTag::getId)
+                .ge(VideoTag::getId, randomId)
+                .in(VideoTag::getTagId, userFavoriteTags.stream().map(UserFavoriteTag::getTagId).toArray())
+                .last("limit 10");
+        List<VideoTag> videoTags = videoTagMapper.selectList(videoTagQueryWrapper);
+        List<Long> videoIds = videoTags.stream().map(VideoTag::getVideoId).toList();
+        if (videoIds.isEmpty()) {
+            return Result.success(new ArrayList<>());
+        }
+        LambdaQueryWrapper<Video> videoQueryWrapper = new LambdaQueryWrapper<>();
+        videoQueryWrapper.in(Video::getId, videoIds)
+                .orderByDesc(Video::getLikes)
+                .last("limit 10");
+        List<Video> videos = videoMapper.selectList(videoQueryWrapper);
+        return Result.success(fillVideo(videos, userId));
     }
 }

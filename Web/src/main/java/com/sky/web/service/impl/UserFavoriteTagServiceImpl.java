@@ -61,6 +61,26 @@ public class UserFavoriteTagServiceImpl implements UserFavoriteTagService {
         queryWrapper.eq(UserFavoriteTag::getUserId, userId)
                 .in(UserFavoriteTag::getTagId, videoTags.stream().map(VideoTag::getTagId).toArray());
         List<UserFavoriteTag> userFavoriteTags = userFavoriteTagMapper.selectList(queryWrapper);
+        //如果有不存在的标签就创建
+        if (userFavoriteTags.size() != videoTags.size()) {
+            for (VideoTag videoTag : videoTags) {
+                boolean exist = false;
+                for (UserFavoriteTag userFavoriteTag : userFavoriteTags) {
+                    if (userFavoriteTag.getTagId().equals(videoTag.getTagId())) {
+                        exist = true;
+                        break;
+                    }
+                }
+                if (!exist) {
+                    UserFavoriteTag userFavoriteTag = new UserFavoriteTag();
+                    userFavoriteTag.setUserId(userId);
+                    userFavoriteTag.setTagId(videoTag.getTagId());
+                    userFavoriteTag.setProbability(0);
+                    userFavoriteTagMapper.insert(userFavoriteTag);
+                    userFavoriteTags.add(userFavoriteTag);
+                }
+            }
+        }
         LambdaUpdateWrapper<UserFavoriteTag> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(UserFavoriteTag::getUserId, userId)
                 .in(UserFavoriteTag::getTagId, userFavoriteTags.stream().map(UserFavoriteTag::getTagId).toArray())

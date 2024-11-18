@@ -35,4 +35,6 @@ public interface VideoService {
     Result searchVideo(String keyword, Integer page, Integer size, String sortType) throws IOException;
 
     Result getUserLikeVideoList(Long userId, Integer page, Integer size);
+
+    Result getRecommendVideoList(Long userId) throws ExecutionException, InterruptedException;
 }
