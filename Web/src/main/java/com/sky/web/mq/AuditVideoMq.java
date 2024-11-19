@@ -10,6 +10,7 @@ import com.sky.pojo.entity.UserFollow;
 import com.sky.pojo.entity.Video;
 import com.sky.pojo.mapper.UserFollowMapper;
 import com.sky.web.service.InternalMessageService;
+import com.sky.web.service.InvertedIndexService;
 import jakarta.annotation.Resource;
 import org.springframework.data.redis.core.RedisCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -34,12 +35,20 @@ public class AuditVideoMq {
     UserFollowMapper userFollowMapper;
     @Resource
     InternalMessageService internalMessageService;
+    @Resource
+    InvertedIndexService invertedIndexService;
 
     @KafkaListener(topics = "video_audit", containerFactory = "kafkaListenerBatchContainerFactory")
+    public void auditVideoAndBuildInvertedIndex(List<String> videoJson) throws IOException {
+        List<Video> videoList = videoJson.stream().map(json -> gson.fromJson(json, Video.class)).toList();
+        invertedIndexService.batchInsertOrUpdateInvertedIndex(videoList);
+    }
+
+    /*@KafkaListener(topics = "video_audit", containerFactory = "kafkaListenerBatchContainerFactory")
     public void auditVideoToEs(List<String> videoJson) throws IOException {
         List<Video> videoList = videoJson.stream().map(json -> gson.fromJson(json, Video.class)).toList();
         appendVideoToEsRetry(videoList);
-    }
+    }*/
 
     void appendVideoToEsRetry(List<Video> videoList) throws IOException {
         BulkRequest.Builder bulkRequestBuilder = new BulkRequest.Builder();
