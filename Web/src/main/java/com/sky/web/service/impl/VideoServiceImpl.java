@@ -21,13 +21,12 @@ import com.sky.pojo.entity.*;
 import com.sky.pojo.mapper.*;
 import com.sky.pojo.vo.UserVideo;
 import com.sky.web.service.InternalMessageService;
+import com.sky.web.service.InvertedIndexService;
 import com.sky.web.service.UserFavoriteTagService;
 import com.sky.web.service.VideoService;
 import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.redis.core.RedisCallback;
-import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
@@ -75,6 +74,8 @@ public class VideoServiceImpl implements VideoService {
     UserFavoriteTagMapper userFavoriteTagMapper;
     @Resource
     Gson gson;
+    @Resource
+    InvertedIndexService invertedIndexService;
 
     private static final int LIKE = 1;
     private static final int DISLIKE = 2;
@@ -436,6 +437,57 @@ public class VideoServiceImpl implements VideoService {
 
     @Override
     public Result searchVideo(String keyword, Integer page, Integer size, String sortType) throws IOException {
+
+        LambdaQueryWrapper<Video> queryWrapper = new LambdaQueryWrapper<>();
+
+        switch (sortType) {
+            case "default" -> {
+                break;
+            }
+            case "likes" -> {
+                queryWrapper.orderByDesc(Video::getLikes);
+                break;
+            }
+            case "views" -> {
+                queryWrapper.orderByDesc(Video::getViews);
+                break;
+            }
+            case "uploadTime" -> {
+                queryWrapper.orderByDesc(Video::getUploadTime);
+                break;
+            }
+            default -> {
+                return Result.failed("排序类型不存在");
+            }
+        }
+
+        Map<Integer, Double> docScores = invertedIndexService.getDocScores(keyword);
+        int limit = 1000;
+
+        if (docScores == null || docScores.isEmpty()) {
+            return Result.failed("未找到匹配视频");
+        }
+
+        List<Map.Entry<Integer, Double>> sortedDocs = docScores.entrySet()
+                .stream()
+                .sorted(Map.Entry.<Integer, Double>comparingByValue().reversed())
+                .skip((page - 1) * size)
+                .limit(sortType.equals("default") ? 10 : limit)
+                .collect(Collectors.toList());
+
+
+        queryWrapper.in(Video::getId, sortedDocs.stream().map(Map.Entry::getKey).collect(Collectors.toList()))
+                .eq(Video::getStatus, VideoStatus.NORMAL)
+                .last("limit " + size);
+
+        List<Video> videos = videoMapper.selectList(queryWrapper);
+
+        return Result.success(videos);
+
+    }
+
+    @Override
+    public Result searchVideoByEs(String keyword, Integer page, Integer size, String sortType) throws IOException {
         switch (sortType) {
             case "default" -> sortType = null;
             case "like" -> sortType = "likes";
