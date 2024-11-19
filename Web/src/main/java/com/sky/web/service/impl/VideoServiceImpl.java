@@ -6,12 +6,15 @@ import co.elastic.clients.elasticsearch._types.SortOrder;
 import co.elastic.clients.elasticsearch.core.SearchResponse;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.google.gson.Gson;
 import com.sky.common.utils.AliyunOss;
 import com.sky.common.utils.ErrorLogUtil;
 import com.sky.common.utils.PageInfo;
 import com.sky.common.utils.Result;
+import com.sky.pojo.bo.HotVideo;
 import com.sky.pojo.constant.InternalMessageReceiverType;
 import com.sky.pojo.constant.UserChangeProbabilityType;
+import com.sky.pojo.constant.VideoStatus;
 import com.sky.pojo.constant.WebRedisConstants;
 import com.sky.pojo.dto.UploadPendingVideoParam;
 import com.sky.pojo.entity.*;
@@ -22,6 +25,9 @@ import com.sky.web.service.UserFavoriteTagService;
 import com.sky.web.service.VideoService;
 import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
@@ -29,11 +35,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 @Service
 public class VideoServiceImpl implements VideoService {
@@ -68,6 +73,8 @@ public class VideoServiceImpl implements VideoService {
     VideoTagMapper videoTagMapper;
     @Resource
     UserFavoriteTagMapper userFavoriteTagMapper;
+    @Resource
+    Gson gson;
 
     private static final int LIKE = 1;
     private static final int DISLIKE = 2;
@@ -569,6 +576,56 @@ public class VideoServiceImpl implements VideoService {
             }
         }
 
+        return Result.success(videos);
+    }
+
+    @Override
+    public Result getHotVideoList() {
+        //分页查询热门视频
+        Set<String> hotVideos = stringRedisTemplate.opsForZSet().range(WebRedisConstants.HOT_RANK, 0, -1);
+        if (hotVideos == null || hotVideos.isEmpty()) {
+            return Result.success(new ArrayList<>());
+        }
+        List<HotVideo> hotVideoList = new ArrayList<>();
+        for (String hotVideo : hotVideos) {
+            hotVideoList.add(gson.fromJson(hotVideo, HotVideo.class));
+        }
+        LambdaQueryWrapper<Video> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.in(Video::getId, hotVideoList.stream().map(HotVideo::getId).toArray())
+                .eq(Video::getStatus, VideoStatus.NORMAL)
+                .select(Video::getId, Video::getTitle, Video::getCover);
+        List<Video> videos = videoMapper.selectList(queryWrapper);
+        return Result.success(videos);
+    }
+
+    @Override
+    public Result getHotVideoRankList(Integer page, Integer size) {
+        Calendar calendar = Calendar.getInstance();
+        int today = calendar.get(Calendar.DATE);
+
+        final HashMap<String, Integer> map = new HashMap<>();
+        // 优先推送今日的
+        map.put(WebRedisConstants.HOT_VIDEO + today, 10);
+        map.put(WebRedisConstants.HOT_VIDEO + (today - 1), 3);
+        map.put(WebRedisConstants.HOT_VIDEO + (today - 2), 2);
+
+        // 获取热门视频的ID
+        List<Long> hotVideoIds = stringRedisTemplate.executePipelined((RedisCallback<List<Long>>) connection -> {
+                    map.forEach((k, v) -> {
+                        connection.sRandMember(k.getBytes(), v);
+                    });
+                    return null;
+                }).stream()
+                .filter(Objects::nonNull)
+                .flatMap(o -> ((List<byte[]>) o).stream())
+                .map(bytes -> Long.parseLong(new String(bytes)))
+                .toList();
+
+        LambdaQueryWrapper<Video> queryWrapper = new LambdaQueryWrapper<>();
+        queryWrapper.in(Video::getId, hotVideoIds)
+                .eq(Video::getStatus, VideoStatus.NORMAL)
+                .select(Video::getId, Video::getTitle, Video::getCover);
+        List<Video> videos = videoMapper.selectList(queryWrapper);
         return Result.success(videos);
     }
 }

@@ -37,4 +37,8 @@ public interface VideoService {
     Result getUserLikeVideoList(Long userId, Integer page, Integer size);
 
     Result getRecommendVideoList(Long userId) throws ExecutionException, InterruptedException;
+
+    Result getHotVideoList();
+
+    Result getHotVideoRankList(Integer page, Integer size);
 }

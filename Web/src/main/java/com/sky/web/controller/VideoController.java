@@ -111,4 +111,17 @@ public class VideoController {
         Long userId = CheckAnonymousUserUtil.check(SecurityContextHolder.getContext().getAuthentication().getName());
         return videoService.getRecommendVideoList(userId);
     }
+
+    @Operation(summary = "分页获取热门视频")
+    @GetMapping("/get_hot_video_list")
+    public Result getHotVideoList() {
+        return videoService.getHotVideoList();
+    }
+
+    @Operation(summary = "分页获取热门视频排行榜")
+    @GetMapping("/get_hot_video_rank_list")
+    public Result getHotVideoRankList(@RequestParam(defaultValue = "1") Integer page,
+                                      @RequestParam(defaultValue = "10") Integer size) {
+        return videoService.getHotVideoRankList(page, size);
+    }
 }

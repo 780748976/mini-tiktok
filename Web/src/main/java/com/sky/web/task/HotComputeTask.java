@@ -35,7 +35,7 @@ public class HotComputeTask {
     //每小时执行一次
     @Scheduled(cron = "0 0 * * * ?")
     public void computeHotRank() {
-        final TopK topK = new TopK(30, new PriorityQueue<HotVideo>(30, Comparator.comparing(HotVideo::getHot)));
+        final TopK topK = new TopK(20, new PriorityQueue<HotVideo>(30, Comparator.comparing(HotVideo::getHot)));
         long limit = 1000;
         List<Video> videos = videoMapper.selectList(new LambdaQueryWrapper<Video>()
                 .select(Video::getId, Video::getViews, Video::getLikes, Video::getDislikes, Video::getUploadTime)
@@ -58,7 +58,7 @@ public class HotComputeTask {
         }
         final byte[] key = WebRedisConstants.HOT_RANK.getBytes();
         final List<HotVideo> hotVideos = topK.get();
-        final Double minHot = hotVideos.get(0).getHot();
+        stringRedisTemplate.opsForZSet().remove(WebRedisConstants.HOT_RANK);
         stringRedisTemplate.executePipelined((RedisCallback<Object>) connection -> {
             for (HotVideo hotVideo : hotVideos) {
                 final Double hot = hotVideo.getHot();
@@ -67,7 +67,6 @@ public class HotComputeTask {
             }
             return null;
         });
-        stringRedisTemplate.opsForZSet().removeRangeByScore(WebRedisConstants.HOT_RANK, minHot, 0);
     }
 
     //每3个小时执行一次
