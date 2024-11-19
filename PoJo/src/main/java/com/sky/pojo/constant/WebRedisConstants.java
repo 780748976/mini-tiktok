@@ -25,4 +25,6 @@ public class WebRedisConstants {
     public static final String MENTION_MESSAGE = "MentionMessage:";
     public static final String MESSAGE_MESSAGE = "MessageMessage:";
     public static final String DYNAMIC_MESSAGE = "DynamicMessage:";
+    public static final String HOT_RANK = "HotRank:";
+    public static final String HOT_VIDEO = "HotVideo:";
 }

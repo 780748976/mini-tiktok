@@ -474,25 +474,41 @@ public class VideoServiceImpl implements VideoService {
 
     @Override
     public Result getRecommendVideoList(Long userId) throws ExecutionException, InterruptedException {
-        List<UserFavoriteTag> userFavoriteTags = new ArrayList<>();
+        List<UserFavoriteTag> userFavoriteTags;
         if (userId != 0) {
-            //获取用户喜欢的标签前十
+            //获取用户喜欢的标签前5
             LambdaQueryWrapper<UserFavoriteTag> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(UserFavoriteTag::getUserId, userId)
                     .orderByDesc(UserFavoriteTag::getProbability)
                     .last("limit 5");
             userFavoriteTags = userFavoriteTagMapper.selectList(queryWrapper);
+        } else {
+            userFavoriteTags = new ArrayList<>();
         }
-        //如果不足十个则随机获取
+        //随机获取补充
         Random random = new Random();
+        LambdaQueryWrapper<VideoTag> videoTagQueryWrapper = new LambdaQueryWrapper<>();
+        LambdaQueryWrapper<Tag> randomQueryWrapper = new LambdaQueryWrapper<>();
+        // 获取最大Id
+        CompletableFuture<Long> maxVideoTagIdFuture = CompletableFuture.supplyAsync(() -> {
+
+            videoTagQueryWrapper.notIn(VideoTag::getTagId, userFavoriteTags.stream()
+                            .map(UserFavoriteTag::getTagId).toArray())
+                    .orderByDesc(VideoTag::getId).last("limit 1");
+            return videoTagMapper.selectOne(videoTagQueryWrapper).getId();
+        }, asyncServiceExecutor);
+
+        CompletableFuture<Long> maxTagIdFuture = CompletableFuture.supplyAsync(() -> {
+
+            randomQueryWrapper.orderByDesc(Tag::getId).last("limit 1");
+            return tagMapper.selectOne(randomQueryWrapper).getId();
+        }, asyncServiceExecutor);
+
+        Long maxVideoTagId = maxVideoTagIdFuture.get();
+        Long maxTagId = maxTagIdFuture.get();
         if (userFavoriteTags.size() < 7) {
-            //获取Tag中最大Id
-            LambdaQueryWrapper<Tag> randomQueryWrapper = new LambdaQueryWrapper<>();
-            randomQueryWrapper.orderByDesc(Tag::getId)
-                    .last("limit 1");
-            Long maxId = tagMapper.selectOne(randomQueryWrapper).getId();
             //生成随机数
-            Long randomId = random.nextLong(maxId.intValue());
+            Long randomId = random.nextLong(maxTagId.intValue());
             randomQueryWrapper.clear();
             randomQueryWrapper.orderByAsc(Tag::getId)
                     .ge(Tag::getId, randomId)
@@ -507,12 +523,8 @@ public class VideoServiceImpl implements VideoService {
                 userFavoriteTags.add(userFavoriteTag);
             }
         }
-        //获取最大Id
-        LambdaQueryWrapper<VideoTag> videoTagQueryWrapper = new LambdaQueryWrapper<>();
-        videoTagQueryWrapper.in(VideoTag::getTagId, userFavoriteTags.stream().map(UserFavoriteTag::getTagId).toArray())
-                .orderByDesc(VideoTag::getId).last("limit 1");
-        Long maxId = videoTagMapper.selectOne(videoTagQueryWrapper).getId();
-        Long randomId = random.nextLong(maxId.intValue());
+
+        Long randomId = random.nextLong(maxVideoTagId.intValue());
         videoTagQueryWrapper.clear();
         videoTagQueryWrapper.orderByAsc(VideoTag::getId)
                 .ge(VideoTag::getId, randomId)
@@ -528,6 +540,7 @@ public class VideoServiceImpl implements VideoService {
                 .orderByDesc(Video::getLikes)
                 .last("limit 10");
         List<Video> videos = videoMapper.selectList(videoQueryWrapper);
+
         //查询用户12小时以内的播放记录
         LambdaQueryWrapper<UserWatchRecord> watchRecordQueryWrapper = new LambdaQueryWrapper<>();
         watchRecordQueryWrapper.eq(UserWatchRecord::getUserId, userId)
@@ -556,6 +569,6 @@ public class VideoServiceImpl implements VideoService {
             }
         }
 
-        return Result.success(fillVideo(videos, userId));
+        return Result.success(videos);
     }
 }
