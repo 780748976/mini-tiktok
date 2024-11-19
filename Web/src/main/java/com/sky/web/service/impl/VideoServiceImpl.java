@@ -82,7 +82,8 @@ public class VideoServiceImpl implements VideoService {
     @Override
     public Result getUserVideoList(Long userId, Integer page, Integer size) {
         LambdaQueryWrapper<Video> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Video::getUserId, userId);
+        queryWrapper.eq(Video::getUserId, userId)
+                .eq(Video::getStatus, VideoStatus.NORMAL);
         Page<Video> videoPage = new Page<>(page, size);
         Page<Video> videoList = videoMapper.selectPage(videoPage, queryWrapper);
         return Result.success(PageInfo.restPage(videoList));
@@ -123,7 +124,8 @@ public class VideoServiceImpl implements VideoService {
     @Override
     public Result viewVideo(Long videoId, Long userId) throws ExecutionException, InterruptedException {
         LambdaQueryWrapper<Video> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Video::getId, videoId);
+        queryWrapper.eq(Video::getId, videoId)
+                .eq(Video::getStatus, VideoStatus.NORMAL);
         Video video = videoMapper.selectOne(queryWrapper);
         if (video == null) {
             return Result.failed("视频不存在");
@@ -152,7 +154,10 @@ public class VideoServiceImpl implements VideoService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result likeVideo(Long videoId, Long userId) {
-        Video video = videoMapper.selectById(videoId);
+        LambdaQueryWrapper<Video> videoQueryWrapper = new LambdaQueryWrapper<>();
+        videoQueryWrapper.eq(Video::getId, videoId)
+                .eq(Video::getStatus, VideoStatus.NORMAL);
+        Video video = videoMapper.selectOne(videoQueryWrapper);
         if (video == null) {
             return Result.failed("视频不存在");
         }
@@ -292,7 +297,10 @@ public class VideoServiceImpl implements VideoService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result dislikeVideo(Long videoId, Long userId) {
-        Video video = videoMapper.selectById(videoId);
+        LambdaQueryWrapper<Video> videoQueryWrapper = new LambdaQueryWrapper<>();
+        videoQueryWrapper.eq(Video::getId, videoId)
+                .eq(Video::getStatus, VideoStatus.NORMAL);
+        Video video = videoMapper.selectOne(videoQueryWrapper);
         if (video == null) {
             return Result.failed("视频不存在");
         }
@@ -544,6 +552,7 @@ public class VideoServiceImpl implements VideoService {
         }
         LambdaQueryWrapper<Video> videoQueryWrapper = new LambdaQueryWrapper<>();
         videoQueryWrapper.in(Video::getId, videoIds)
+                .eq(Video::getStatus, VideoStatus.NORMAL)
                 .orderByDesc(Video::getLikes)
                 .last("limit 10");
         List<Video> videos = videoMapper.selectList(videoQueryWrapper);
