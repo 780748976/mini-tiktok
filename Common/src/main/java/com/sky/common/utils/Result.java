@@ -21,7 +21,7 @@ public class Result {
      */
     private Object data;
 
-    protected Result() {
+    public Result() {
     }
 
     public Result(long code, String message, Object data) {
