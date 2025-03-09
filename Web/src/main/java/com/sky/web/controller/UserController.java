@@ -33,7 +33,7 @@ public class UserController {
     //获取用户信息
     @GetMapping("/get_user_info")
     @Operation(summary = "获取用户信息")
-    public Result getUserInfo(@NotBlank @RequestParam Long userId) {
+    public Result getUserInfo(@RequestParam Long userId) {
         return userService.getUserInfo(userId);
     }
 

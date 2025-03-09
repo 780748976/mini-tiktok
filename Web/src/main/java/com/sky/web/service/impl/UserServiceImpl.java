@@ -47,6 +47,9 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public Result getUserInfo(Long userId) {
+        if (userId == null) {
+            return Result.failed("用户ID不能为空");
+        }
         UserInfo userInfo = userInfoMapper.selectById(userId);
         return Result.success(userInfo);
     }
