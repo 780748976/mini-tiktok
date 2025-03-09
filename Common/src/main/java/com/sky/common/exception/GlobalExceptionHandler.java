@@ -6,8 +6,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.BindException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.Objects;
 
@@ -34,7 +36,17 @@ public class GlobalExceptionHandler {
             return Result.validateFailed(Objects.requireNonNull(ex.getBindingResult().getFieldError()).getDefaultMessage());
         }
         else if (e instanceof HttpMessageNotReadableException) {
-            HttpMessageNotReadableException ex = (HttpMessageNotReadableException) e;
+            /*HttpMessageNotReadableException ex = (HttpMessageNotReadableException) e;*/
+            return Result.validateFailed("参数错误");
+        }
+        else if (e instanceof MissingServletRequestParameterException) {
+            /*MissingServletRequestParameterException ex = (MissingServletRequestParameterException) e;*/
+            return Result.validateFailed("参数错误");
+        }
+        else if (e instanceof NumberFormatException) {
+            return Result.validateFailed("参数错误");
+        }
+        else if (e instanceof MethodArgumentTypeMismatchException) {
             return Result.validateFailed("参数错误");
         }
 
