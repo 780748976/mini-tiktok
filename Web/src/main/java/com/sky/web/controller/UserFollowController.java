@@ -34,7 +34,7 @@ public class UserFollowController {
     }
 
     @GetMapping("/followers")
-    @Operation(summary = "获取关注者列表")
+    @Operation(summary = "获取粉丝列表")
     public Result getFollowers(@RequestParam(defaultValue = "1") Integer page,
                                @RequestParam(defaultValue = "10") Integer pageSize) {
         Long userId = Long.valueOf(SecurityContextHolder.getContext().getAuthentication().getName());
