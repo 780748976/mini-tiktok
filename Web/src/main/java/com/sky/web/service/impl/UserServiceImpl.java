@@ -225,24 +225,50 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Result signIn(Long userId) {
-        boolean isSignIn = Boolean.TRUE.equals(
-                stringRedisTemplate.opsForSet().isMember(WebRedisConstants.USER_TODAY_SIGN_IN_KEY, userId));
-        if(isSignIn){
-            return Result.failed("今日已签到");
+        // 使用用户ID作为锁的key
+        RLock lock = redissonClient.getLock(WebRedisConstants.USER_SIGN_IN_LOCK + userId);
+        
+        try {
+            // 尝试获取锁，最多等待2秒，锁持有时间10秒
+            boolean acquired = lock.tryLock(2, 10, TimeUnit.SECONDS);
+            if (!acquired) {
+                return Result.failed("操作过于频繁，请稍后再试");
+            }
+            
+            // 在锁内检查是否已签到
+            boolean isSignIn = Boolean.TRUE.equals(
+                    stringRedisTemplate.opsForSet().isMember(WebRedisConstants.USER_TODAY_SIGN_IN_KEY, String.valueOf(userId)));
+            if(isSignIn){
+                return Result.failed("今日已签到");
+            }
+            
+            //获取现在时间
+            LocalDateTime end = LocalDateTime.now().plusDays(1).withHour(0).withMinute(0)
+                    .withSecond(0).withNano(0);
+            long seconds = ChronoUnit.SECONDS.between(LocalDateTime.now(),end);
+            
+            LambdaQueryWrapper<UserInfo> queryWrapper = new LambdaQueryWrapper<>();
+            queryWrapper.eq(UserInfo::getId, userId)
+                    .select(UserInfo::getId, UserInfo::getCoins, UserInfo::getExperience)
+                    .last("limit 1");
+            UserInfo userInfo = userInfoMapper.selectOne(queryWrapper);
+            userInfo.setCoins(userInfo.getCoins() + 1)
+                    .setExperience(userInfo.getExperience() + 10);
+            userInfoMapper.updateById(userInfo);
+            
+            // 记录签到信息
+            stringRedisTemplate.opsForSet().add(WebRedisConstants.USER_TODAY_SIGN_IN_KEY, String.valueOf(userId));
+            stringRedisTemplate.expire(WebRedisConstants.USER_TODAY_SIGN_IN_KEY, seconds, TimeUnit.SECONDS);
+            
+            return Result.success("签到成功");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return Result.failed("签到操作被中断");
+        } finally {
+            // 确保释放锁
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
         }
-        //获取现在时间
-        LocalDateTime end = LocalDateTime.now().plusDays(1).withHour(0).withMinute(0)
-                .withSecond(0).withNano(0);
-        long seconds = ChronoUnit.SECONDS.between(LocalDateTime.now(),end);
-        LambdaQueryWrapper<UserInfo> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(UserInfo::getId, userId)
-                .select(UserInfo::getId, UserInfo::getCoins, UserInfo::getExperience)
-                .last("limit 1");
-        UserInfo userInfo = userInfoMapper.selectOne(queryWrapper);
-        userInfo.setCoins(userInfo.getCoins() + 1)
-                .setExperience(userInfo.getExperience() + 10);
-        userInfoMapper.updateById(userInfo);
-        stringRedisTemplate.opsForSet().add(WebRedisConstants.USER_TODAY_SIGN_IN_KEY, String.valueOf(userId));
-        return Result.success("签到成功");
     }
 }

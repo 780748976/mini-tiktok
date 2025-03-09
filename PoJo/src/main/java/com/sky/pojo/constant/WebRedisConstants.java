@@ -27,4 +27,6 @@ public class WebRedisConstants {
     public static final String DYNAMIC_MESSAGE = "DynamicMessage:";
     public static final String HOT_RANK = "HotRank:";
     public static final String HOT_VIDEO = "HotVideo:";
+    //用户签到锁 防止重复签到
+    public static final String USER_SIGN_IN_LOCK = "UserSignInLock:";
 }
