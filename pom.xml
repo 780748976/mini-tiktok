@@ -125,7 +125,7 @@
         <!-- 阿里云OSS SDK -->
         <dependency>
             <groupId>com.aliyun.oss</groupId>
-            <artifactId>aliyun-sdk-oss</artifactId>c
+            <artifactId>aliyun-sdk-oss</artifactId>
             <version>3.15.1</version>
         </dependency>
 
@@ -154,12 +154,6 @@
             <groupId>com.github.xiaoymin</groupId>
             <artifactId>knife4j-openapi3-jakarta-spring-boot-starter</artifactId>
             <version>4.5.0</version>
-        </dependency>
-
-        <!-- Spring Boot的AMQP启动器，支持RabbitMQ -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-amqp</artifactId>
         </dependency>
 
         <!-- Spring Boot的安全启动器，包括Spring Security -->
