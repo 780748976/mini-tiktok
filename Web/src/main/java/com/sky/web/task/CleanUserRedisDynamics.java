@@ -27,12 +27,18 @@ public class CleanUserRedisDynamics {
         List<Long> userIdList = userMapper.selectList(wrapper).stream()
                 .map(user -> Objects.requireNonNull(user.getId()))
                 .toList();
-        //一次删除1000个用户的动态
+
+        // 计算7天前的时间戳（毫秒）
+        long sevenDaysAgoTimestamp = System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000L;
+
+        // 一次处理1000个用户的动态
         for (int i = 0; i < userIdList.size(); i += 1000) {
             List<Long> subList = userIdList.subList(i, Math.min(i + 1000, userIdList.size()));
-            stringRedisTemplate.delete(subList.stream()
-                    .map(userId -> WebRedisConstants.USER_DYNAMICS + userId)
-                    .toList());
+            for (Long userId : subList) {
+                String key = WebRedisConstants.USER_DYNAMICS + userId;
+                // 删除score小于7天前时间戳的所有成员
+                stringRedisTemplate.opsForZSet().removeRangeByScore(key, 0, sevenDaysAgoTimestamp);
+            }
         }
     }
 }
