@@ -106,18 +106,6 @@ spring:
     password: ${sky.datasource.password} # 数据库密码
     url: jdbc:mysql://${sky.datasource.host}:${sky.datasource.port}/${sky.datasource.database}?serverTimezone=UTC&characterEncoding=UTF-8&useUnicode=true&useSSL=false # 数据库连接URL
 
-  rabbitmq: # RabbitMQ配置
-    host: ${sky.rabbitmq.host} # RabbitMQ服务器主机名
-    port: ${sky.rabbitmq.port} # RabbitMQ服务器端口
-    username: ${sky.rabbitmq.username} # RabbitMQ服务器用户名
-    password: ${sky.rabbitmq.password} # RabbitMQ服务器密码
-    listener:
-      simple:
-        retry:
-          enabled: true
-          max-attempts: 3
-          initial-interval: 3000
-
   mail: # 邮件服务配置
     default-encoding: UTF-8 # 默认编码
     host: ${sky.mail.host} # SMTP服务器主机名
