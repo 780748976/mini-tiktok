@@ -38,11 +38,7 @@ public class GlobalExceptionHandler {
             return Result.validateFailed("参数错误");
         }
 
-        StringBuilder message = new StringBuilder(e.getMessage());
-        for (StackTraceElement stackTraceElement : e.getStackTrace()) {
-            message.append("\n").append(stackTraceElement);
-        }
-        log.error(String.valueOf(message));
+        log.error("全局异常处理捕获错误", e);
         return Result.failed("服务异常，请稍后重试");
     }
 }
