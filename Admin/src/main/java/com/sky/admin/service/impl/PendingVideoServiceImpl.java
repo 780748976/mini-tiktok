@@ -21,6 +21,7 @@ import com.sky.pojo.vo.UserPendingVideo;
 import jakarta.annotation.Resource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.sky.web.service.InternalMessageService;
@@ -50,7 +51,7 @@ public class PendingVideoServiceImpl implements PendingVideoService {
     @Resource
     VideoTagMapper videoTagMapper;
     @Autowired
-    ThreadPoolExecutor asyncServiceExecutor;
+    ThreadPoolTaskExecutor asyncServiceExecutor;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
