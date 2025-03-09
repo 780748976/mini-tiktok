@@ -539,7 +539,7 @@ public class VideoServiceImpl implements VideoService {
         return Result.success(PageInfo.restPage(userVideoActionList));
     }
 
-    @Override
+        @Override
     public Result getRecommendVideoList(Long userId) throws ExecutionException, InterruptedException {
         Random random = new Random();
         if (userId == null) {
@@ -560,12 +560,12 @@ public class VideoServiceImpl implements VideoService {
                     .ge(UserWatchRecord::getWatchTime, LocalDateTime.now().minusHours(12));
             return userWatchRecordMapper.selectList(watchRecordQueryWrapper);
         }, asyncServiceExecutor);
-
+    
         List<UserWatchRecord> userWatchRecords = userWatchRecordsFuture.get();
         Set<Long> watchedVideoIds = userWatchRecords.stream()
                 .map(UserWatchRecord::getVideoId)
                 .collect(Collectors.toSet());
-
+    
         List<UserFavoriteTag> userFavoriteTags;
         if (userId != 0) {
             // 获取用户喜欢的标签前5
@@ -577,88 +577,137 @@ public class VideoServiceImpl implements VideoService {
         } else {
             userFavoriteTags = new ArrayList<>();
         }
-
+    
+        // 处理edge case：如果用户没有喜欢的标签，返回随机视频
+        if (userFavoriteTags.isEmpty()) {
+            LambdaQueryWrapper<Video> randomVideoQueryWrapper = new LambdaQueryWrapper<>();
+            randomVideoQueryWrapper.eq(Video::getStatus, VideoStatus.NORMAL)
+                    .orderByDesc(Video::getLikes)
+                    .last("limit 10");
+            List<Video> randomVideos = videoMapper.selectList(randomVideoQueryWrapper);
+            return Result.success(randomVideos);
+        }
+    
         // 随机获取补充
         LambdaQueryWrapper<VideoTag> videoTagQueryWrapper = new LambdaQueryWrapper<>();
         LambdaQueryWrapper<Tag> randomQueryWrapper = new LambdaQueryWrapper<>();
-
+    
         // 获取最大Id
         CompletableFuture<Long> maxVideoTagIdFuture = CompletableFuture.supplyAsync(() -> {
-            videoTagQueryWrapper.notIn(VideoTag::getTagId, userFavoriteTags.stream()
-                    .map(UserFavoriteTag::getTagId).toArray())
-                    .orderByDesc(VideoTag::getId).last("limit 1");
-            return videoTagMapper.selectOne(videoTagQueryWrapper).getId();
+            // 添加安全检查，确保有足够的标签用于notIn条件
+            if (userFavoriteTags.isEmpty()) {
+                videoTagQueryWrapper.orderByDesc(VideoTag::getId).last("limit 1");
+            } else {
+                videoTagQueryWrapper.notIn(VideoTag::getTagId, userFavoriteTags.stream()
+                        .map(UserFavoriteTag::getTagId).toArray())
+                        .orderByDesc(VideoTag::getId).last("limit 1");
+            }
+            VideoTag videoTag = videoTagMapper.selectOne(videoTagQueryWrapper);
+            return videoTag != null ? videoTag.getId() : 0L; // 处理空值情况
         }, asyncServiceExecutor);
-
+    
         CompletableFuture<Long> maxTagIdFuture = CompletableFuture.supplyAsync(() -> {
             randomQueryWrapper.orderByDesc(Tag::getId).last("limit 1");
-            return tagMapper.selectOne(randomQueryWrapper).getId();
+            Tag tag = tagMapper.selectOne(randomQueryWrapper);
+            return tag != null ? tag.getId() : 0L; // 处理空值情况
         }, asyncServiceExecutor);
-
+    
         Long maxVideoTagId = maxVideoTagIdFuture.get();
         Long maxTagId = maxTagIdFuture.get();
-
+    
+        // 处理edge case：如果没有视频标签或标签，返回随机视频
+        if (maxVideoTagId == 0 || maxTagId == 0) {
+            LambdaQueryWrapper<Video> randomVideoQueryWrapper = new LambdaQueryWrapper<>();
+            randomVideoQueryWrapper.eq(Video::getStatus, VideoStatus.NORMAL)
+                    .orderByDesc(Video::getLikes)
+                    .last("limit 10");
+            List<Video> randomVideos = videoMapper.selectList(randomVideoQueryWrapper);
+            return Result.success(randomVideos);
+        }
+    
         if (userFavoriteTags.size() < 7) {
             // 生成随机数
-            Long randomId = random.nextLong(maxTagId.intValue());
-            randomQueryWrapper.clear();
-            randomQueryWrapper.orderByAsc(Tag::getId)
-                    .ge(Tag::getId, randomId)
-                    .notIn(Tag::getId, userFavoriteTags.stream().map(UserFavoriteTag::getTagId).toArray())
-                    .last("limit " + (7 - userFavoriteTags.size()));
-            List<Tag> randomTags = tagMapper.selectList(randomQueryWrapper);
-            for (Tag tag : randomTags) {
-                UserFavoriteTag userFavoriteTag = new UserFavoriteTag();
-                userFavoriteTag.setUserId(userId)
-                        .setTagId(tag.getId())
-                        .setProbability(0);
-                userFavoriteTags.add(userFavoriteTag);
+            Long randomId = maxTagId > 0 ? random.nextLong(maxTagId.intValue()) : 0L;
+            if (randomId > 0) {
+                randomQueryWrapper.clear();
+                
+                // 构建查询条件之前添加安全检查
+                if (userFavoriteTags.isEmpty()) {
+                    randomQueryWrapper.orderByAsc(Tag::getId)
+                            .ge(Tag::getId, randomId)
+                            .last("limit " + (7 - userFavoriteTags.size()));
+                } else {
+                    randomQueryWrapper.orderByAsc(Tag::getId)
+                            .ge(Tag::getId, randomId)
+                            .notIn(Tag::getId, userFavoriteTags.stream().map(UserFavoriteTag::getTagId).toArray())
+                            .last("limit " + (7 - userFavoriteTags.size()));
+                }
+                
+                List<Tag> randomTags = tagMapper.selectList(randomQueryWrapper);
+                for (Tag tag : randomTags) {
+                    UserFavoriteTag userFavoriteTag = new UserFavoriteTag();
+                    userFavoriteTag.setUserId(userId)
+                            .setTagId(tag.getId())
+                            .setProbability(0);
+                    userFavoriteTags.add(userFavoriteTag);
+                }
             }
         }
-
-        Long randomId = random.nextLong(maxVideoTagId.intValue());
+    
+        // 如果仍然没有标签，返回随机视频
+        if (userFavoriteTags.isEmpty()) {
+            LambdaQueryWrapper<Video> randomVideoQueryWrapper = new LambdaQueryWrapper<>();
+            randomVideoQueryWrapper.eq(Video::getStatus, VideoStatus.NORMAL)
+                    .orderByDesc(Video::getLikes)
+                    .last("limit 10");
+            List<Video> randomVideos = videoMapper.selectList(randomVideoQueryWrapper);
+            return Result.success(randomVideos);
+        }
+    
+        Long randomId = maxVideoTagId > 0 ? random.nextLong(maxVideoTagId.intValue()) : 0L;
         videoTagQueryWrapper.clear();
-        videoTagQueryWrapper.orderByAsc(VideoTag::getId)
-                .ge(VideoTag::getId, randomId)
-                .in(VideoTag::getTagId, userFavoriteTags.stream().map(UserFavoriteTag::getTagId).toArray())
+        videoTagQueryWrapper.orderByAsc(VideoTag::getId);
+        if (randomId > 0) {
+            videoTagQueryWrapper.ge(VideoTag::getId, randomId);
+        }
+        videoTagQueryWrapper.in(VideoTag::getTagId, userFavoriteTags.stream().map(UserFavoriteTag::getTagId).toArray())
                 .last("limit 10");
         List<VideoTag> videoTags = videoTagMapper.selectList(videoTagQueryWrapper);
         List<Long> videoIds = videoTags.stream().map(VideoTag::getVideoId).toList();
         if (videoIds.isEmpty()) {
-            return Result.success(new ArrayList<>());
+            // 如果没有符合条件的视频，返回随机视频
+            LambdaQueryWrapper<Video> randomVideoQueryWrapper = new LambdaQueryWrapper<>();
+            randomVideoQueryWrapper.eq(Video::getStatus, VideoStatus.NORMAL)
+                    .orderByDesc(Video::getLikes)
+                    .last("limit 10");
+            List<Video> randomVideos = videoMapper.selectList(randomVideoQueryWrapper);
+            return Result.success(randomVideos);
         }
-
+    
         LambdaQueryWrapper<Video> videoQueryWrapper = new LambdaQueryWrapper<>();
         videoQueryWrapper.in(Video::getId, videoIds)
                 .eq(Video::getStatus, VideoStatus.NORMAL)
                 .orderByDesc(Video::getLikes)
                 .last("limit 10");
         List<Video> videos = videoMapper.selectList(videoQueryWrapper);
-
+    
         // 去重
         videos.removeIf(video -> watchedVideoIds.contains(video.getId()));
-
-        // 重新获取直到满足10个
-        while (videos.size() < 10) {
-            videoQueryWrapper.clear();
-            videoQueryWrapper.in(Video::getId, videoIds)
-                    .eq(Video::getStatus, VideoStatus.NORMAL)
+    
+        // 如果去重后视频数不足10个，重新获取
+        if (videos.size() < 10) {
+            // 获取更多视频进行补充
+            LambdaQueryWrapper<Video> moreVideosQuery = new LambdaQueryWrapper<>();
+            moreVideosQuery.eq(Video::getStatus, VideoStatus.NORMAL)
+                    .notIn(videos.isEmpty() ? null : Video::getId, watchedVideoIds)
                     .orderByDesc(Video::getLikes)
                     .last("limit " + (10 - videos.size()));
-            List<Video> tempVideos = videoMapper.selectList(videoQueryWrapper);
-            for (Video video : tempVideos) {
-                if (!watchedVideoIds.contains(video.getId())) {
-                    videos.add(video);
-                }
-            }
-            if (videos.size() >= 10) {
-                break;
-            }
+            List<Video> moreVideos = videoMapper.selectList(moreVideosQuery);
+            videos.addAll(moreVideos);
         }
-
+    
         return Result.success(videos);
     }
-
     @Override
     public Result getHotVideoList() {
         //分页查询热门视频
