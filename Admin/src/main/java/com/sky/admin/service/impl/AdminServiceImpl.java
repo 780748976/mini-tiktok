@@ -191,9 +191,9 @@ public class AdminServiceImpl implements AdminService {
         return Result.success("创建成功，邀请码有效期为3天");
     }
 
-    public boolean checkCode(String userid, String type, String code) {;
+    public boolean checkCode(String email, String code, String type) {;
         //判断验证码是否正确
-        String realCode =  stringRedisTemplate.opsForValue().get(WebRedisConstants.EMAIL_CODE_KEY + type + userid);
+        String realCode =  stringRedisTemplate.opsForValue().get(WebRedisConstants.EMAIL_CODE_KEY + type + email);
         if (realCode == null)
             return false;
         return Objects.equals(realCode, code);
