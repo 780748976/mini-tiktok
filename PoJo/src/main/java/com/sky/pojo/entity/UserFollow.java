@@ -8,7 +8,6 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-@TableName("UserFollow") // 修改表名为 UserFollow
 public class UserFollow {
     @TableId(type = IdType.AUTO)
     @Schema(description = "ID")
