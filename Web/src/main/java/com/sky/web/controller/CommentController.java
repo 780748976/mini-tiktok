@@ -41,4 +41,24 @@ public class CommentController {
         Long userId = Long.valueOf(SecurityContextHolder.getContext().getAuthentication().getName());
         return commentService.dislikeComment(commentId, userId);
     }
+
+    @GetMapping("/video")
+    @Operation(summary = "分页查询视频下的评论，每个父评论展示最多3条子评论")
+    public Result getVideoComments(
+            @RequestParam @Min(1) Long videoId,
+            @RequestParam(defaultValue = "1") @Min(1) Integer page,
+            @RequestParam(defaultValue = "10") @Min(1) Integer size) {
+        Long userId = Long.valueOf(SecurityContextHolder.getContext().getAuthentication().getName());
+        return commentService.getVideoComments(videoId, page, size, userId);
+    }
+
+    @GetMapping("/replies")
+    @Operation(summary = "分页查询评论下的子评论")
+    public Result getChildComments(
+            @RequestParam @Min(1) Long commentId,
+            @RequestParam(defaultValue = "1") @Min(1) Integer page,
+            @RequestParam(defaultValue = "10") @Min(1) Integer size) {
+        Long userId = Long.valueOf(SecurityContextHolder.getContext().getAuthentication().getName());
+        return commentService.getChildComments(commentId, page, size, userId);
+    }
 }
