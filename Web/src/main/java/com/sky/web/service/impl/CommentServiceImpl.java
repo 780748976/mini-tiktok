@@ -101,13 +101,13 @@ public class CommentServiceImpl implements CommentService {
             if (comment.getReplyId() != null && comment.getReplyUserId() != null 
                     && !comment.getReplyUserId().equals(parentComment.getUserId())) {
                 internalMessageService.sendCommentMessage(comment.getReplyUserId(), parentId,
-                        InternalMessageReceiverType.COMMENT, InternalMessageTypeConstants.COMMENT,
+                        InternalMessageReceiverType.COMMENT,
                         comment.getId(), userId, content);
             }
             else{
                 // 发送站内信给父评论作者
             internalMessageService.sendCommentMessage(parentComment.getUserId(), parentId,
-            InternalMessageReceiverType.COMMENT, InternalMessageTypeConstants.COMMENT,
+            InternalMessageReceiverType.COMMENT,
             comment.getId(), userId, content);
             }
         } else {
@@ -119,7 +119,7 @@ public class CommentServiceImpl implements CommentService {
             }
             // 发送站内信给视频作者
             internalMessageService.sendCommentMessage(video.getUserId(), videoId,
-                    InternalMessageReceiverType.VIDEO, InternalMessageTypeConstants.COMMENT,
+                    InternalMessageReceiverType.VIDEO,
                     comment.getId(), userId, content);
         }
         

@@ -2,7 +2,6 @@ package com.sky.web.service.impl;
 
 import com.google.gson.Gson;
 import com.sky.common.utils.SseEmitterUtil;
-import com.sky.pojo.constant.InternalMessageSendTypeConstants;
 import com.sky.pojo.constant.InternalMessageTypeConstants;
 import com.sky.pojo.constant.WebRedisConstants;
 import com.sky.pojo.entity.InternalMessage;
@@ -61,7 +60,6 @@ public class InternalMessageServiceImpl implements InternalMessageService {
                 .setReceiverId(receiverId)
                 .setReceiverType(receiverType)
                 .setType(InternalMessageTypeConstants.MENTION)
-                .setSendType(InternalMessageSendTypeConstants.COMMENT)
                 .setSendId(sendId)
                 .setUserId(userId)
                 .setIsRead(false)
@@ -115,13 +113,12 @@ public class InternalMessageServiceImpl implements InternalMessageService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void sendCommentMessage(Long receiverUserId, Long receiverId,
-                                   Integer receiverType, Integer targetType, Long targetId, Long userId, String comment) {
+                                   Integer receiverType, Long targetId, Long userId, String comment) {
         InternalMessage internalMessage = new InternalMessage()
                 .setReceiverUserId(receiverUserId)
                 .setReceiverId(receiverId)
                 .setReceiverType(receiverType)
                 .setType(InternalMessageTypeConstants.COMMENT)
-                .setSendType(targetType)
                 .setSendId(targetId)
                 .setUserId(userId)
                 .setContent(comment)

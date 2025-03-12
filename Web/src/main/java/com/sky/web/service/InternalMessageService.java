@@ -18,7 +18,7 @@ public interface InternalMessageService {
     void sendSystemMessage(Long receiverUserId, String message, Long receiverId, Integer receiverType);
 
     void sendCommentMessage(Long receiverUserId, Long receiverId,
-                            Integer receiverType, Integer targetType, Long targetId, Long userId, String comment);
+                            Integer receiverType, Long targetId, Long userId, String comment);
 
     void sendDynamicsMessage(List<Long> receiverUserId);
 }
