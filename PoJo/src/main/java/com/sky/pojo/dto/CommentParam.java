@@ -21,6 +21,12 @@ public class CommentParam {
     @NotBlank(message = "评论内容不可为空")
     private String content;
 
-    @Schema(description = "@用户ID")
+    @Schema(description = "@用户ID列表")
     private List<String> mentionUserIds;
+    
+    @Schema(description = "回复的二级评论ID")
+    private Long replyId;
+    
+    @Schema(description = "回复的用户ID")
+    private Long replyUserId;
 }

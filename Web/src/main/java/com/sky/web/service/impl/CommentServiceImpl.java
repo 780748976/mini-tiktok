@@ -1,14 +1,12 @@
 package com.sky.web.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.sky.common.utils.Result;
 import com.sky.pojo.constant.InternalMessageReceiverType;
 import com.sky.pojo.constant.InternalMessageTypeConstants;
 import com.sky.pojo.dto.CommentParam;
 import com.sky.pojo.entity.Comment;
-import com.sky.pojo.entity.User;
 import com.sky.pojo.entity.UserInfo;
 import com.sky.pojo.entity.Video;
 import com.sky.pojo.mapper.CommentMapper;
@@ -59,8 +57,38 @@ public class CommentServiceImpl implements CommentService {
                 .setLikes(0L)
                 .setDislikes(0L)
                 .setCreateTime(LocalDateTime.now());
+        
+        // 设置回复的评论ID和用户ID
+        if (commentParam.getReplyId() != null) {
+            comment.setReplyId(commentParam.getReplyId());
+        }
+        
+        if (commentParam.getReplyUserId() != null) {
+            comment.setReplyUserId(commentParam.getReplyUserId());
+        }
+        
+        // 格式化@mentions
+        if (commentParam.getMentionUserIds() != null && !commentParam.getMentionUserIds().isEmpty()) {
+            StringBuilder mentions = new StringBuilder();
+            for (String mentionUserId : commentParam.getMentionUserIds()) {
+                Long mentionId = Long.parseLong(mentionUserId);
+                // 获取用户昵称
+                LambdaQueryWrapper<UserInfo> mentionQueryWrapper = new LambdaQueryWrapper<>();
+                mentionQueryWrapper.eq(UserInfo::getId, mentionId).select(UserInfo::getNickname);
+                UserInfo mentionedUserInfo = userInfoMapper.selectOne(mentionQueryWrapper);
+                if (mentionedUserInfo != null) {
+                    if (mentions.length() > 0) {
+                        mentions.append(",");
+                    }
+                    mentions.append(mentionedUserInfo.getNickname()).append(":").append(mentionId);
+                }
+            }
+            comment.setMentions(mentions.toString());
+        }
+        
         commentMapper.insert(comment);
 
+        // 处理回复通知
         if (parentId != null) {
             LambdaQueryWrapper<Comment> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(Comment::getId, parentId).select(Comment::getUserId);
@@ -68,10 +96,20 @@ public class CommentServiceImpl implements CommentService {
             if (parentComment == null) {
                 return Result.failed("父评论不存在");
             }
-            // 发送站内信
+                    
+            // 如果是回复二级评论，且回复的不是父评论作者，则也通知被回复的用户
+            if (comment.getReplyId() != null && comment.getReplyUserId() != null 
+                    && !comment.getReplyUserId().equals(parentComment.getUserId())) {
+                internalMessageService.sendCommentMessage(comment.getReplyUserId(), parentId,
+                        InternalMessageReceiverType.COMMENT, InternalMessageTypeConstants.COMMENT,
+                        comment.getId(), userId, content);
+            }
+            else{
+                // 发送站内信给父评论作者
             internalMessageService.sendCommentMessage(parentComment.getUserId(), parentId,
-                    InternalMessageReceiverType.COMMENT, InternalMessageTypeConstants.COMMENT,
-                    comment.getId(), userId, content);
+            InternalMessageReceiverType.COMMENT, InternalMessageTypeConstants.COMMENT,
+            comment.getId(), userId, content);
+            }
         } else {
             LambdaQueryWrapper<Video> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(Video::getId, videoId).select(Video::getUserId);
@@ -79,15 +117,18 @@ public class CommentServiceImpl implements CommentService {
             if (video == null) {
                 return Result.failed("视频不存在");
             }
-            // 发送站内信
+            // 发送站内信给视频作者
             internalMessageService.sendCommentMessage(video.getUserId(), videoId,
                     InternalMessageReceiverType.VIDEO, InternalMessageTypeConstants.COMMENT,
                     comment.getId(), userId, content);
         }
+        
         //处理@消息
         if (commentParam.getMentionUserIds() != null && !commentParam.getMentionUserIds().isEmpty()) {
             for (String mentionUserId : commentParam.getMentionUserIds()) {
-                internalMessageService.sendMentionMessage(Long.parseLong(mentionUserId), parentId,
+                Long mentionId = Long.parseLong(mentionUserId);
+                // 发送@通知给被提及的用户
+                internalMessageService.sendMentionMessage(mentionId, parentId,
                     InternalMessageReceiverType.COMMENT,
                     comment.getId(), userId, content);
             }
@@ -100,7 +141,7 @@ public class CommentServiceImpl implements CommentService {
     @Transactional(rollbackFor = Exception.class)
     public Result likeComment(Long commentId, Long userId) {
         LambdaQueryWrapper<Comment> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Comment::getId, commentId).eq(Comment::getUserId, userId);
+        queryWrapper.eq(Comment::getId, commentId);
         Comment comment = commentMapper.selectOne(queryWrapper);
         if (comment == null) {
             return Result.failed("评论不存在");
@@ -118,7 +159,7 @@ public class CommentServiceImpl implements CommentService {
     @Transactional(rollbackFor = Exception.class)
     public Result dislikeComment(Long commentId, Long userId) {
         LambdaQueryWrapper<Comment> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Comment::getId, commentId).eq(Comment::getUserId, userId);
+        queryWrapper.eq(Comment::getId, commentId);
         Comment comment = commentMapper.selectOne(queryWrapper);
         if (comment == null) {
             return Result.failed("评论不存在");
@@ -242,6 +283,19 @@ public class CommentServiceImpl implements CommentService {
         commentVO.setLikes(comment.getLikes());
         commentVO.setDislikes(comment.getDislikes());
         commentVO.setCreateTime(comment.getCreateTime());
+        
+        // 设置回复相关信息
+        commentVO.setReplyId(comment.getReplyId());
+        commentVO.setReplyUserId(comment.getReplyUserId());
+        commentVO.setMentions(comment.getMentions());
+        
+        // 如果有回复的用户ID，设置回复用户的昵称
+        if (comment.getReplyUserId() != null) {
+            UserInfo replyUserInfo = userInfoMapper.selectById(comment.getReplyUserId());
+            if (replyUserInfo != null) {
+                commentVO.setReplyUserName(replyUserInfo.getNickname());
+            }
+        }
         
         // 设置是否点赞/点踩，后续可扩展
         commentVO.setIsLiked(false);

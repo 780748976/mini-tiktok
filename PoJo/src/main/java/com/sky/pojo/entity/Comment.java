@@ -26,6 +26,15 @@ public class Comment {
     @Schema(description = "父评论ID，顶级评论为null")
     private Long parentId;
 
+    @Schema(description = "回复的二级评论ID")
+    private Long replyId;
+
+    @Schema(description = "回复的用户ID")
+    private Long replyUserId;
+
+    @Schema(description = "@的用户列表，格式：nickname1:userId1,nickname2:userId2")
+    private String mentions;
+
     @Schema(description = "评论内容")
     private String content;
 
