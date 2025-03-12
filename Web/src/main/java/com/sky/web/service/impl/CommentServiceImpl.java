@@ -48,7 +48,69 @@ public class CommentServiceImpl implements CommentService {
         Long parentId = commentParam.getParentId();
         Long videoId = commentParam.getVideoId();
         String content = commentParam.getContent();
+        
+        // 参数校验 - 视频是否存在
+        if (videoId != null) {
+            LambdaQueryWrapper<Video> videoQueryWrapper = new LambdaQueryWrapper<>();
+            videoQueryWrapper.eq(Video::getId, videoId).select(Video::getUserId);
+            Video video = videoMapper.selectOne(videoQueryWrapper);
+            if (video == null) {
+                return Result.failed("视频不存在");
+            }
+        }
 
+        // 参数校验 - 父评论是否存在
+        Long parentUserId = null;
+        if (parentId != null) {
+            LambdaQueryWrapper<Comment> parentQueryWrapper = new LambdaQueryWrapper<>();
+            parentQueryWrapper.eq(Comment::getId, parentId).select(Comment::getUserId);
+            Comment parentComment = commentMapper.selectOne(parentQueryWrapper);
+            if (parentComment == null) {
+                return Result.failed("父评论不存在");
+            }
+            parentUserId = parentComment.getUserId();
+        }
+
+        // 参数校验 - 回复的评论是否存在
+        if (commentParam.getReplyId() != null) {
+            LambdaQueryWrapper<Comment> replyQueryWrapper = new LambdaQueryWrapper<>();
+            replyQueryWrapper.eq(Comment::getId, commentParam.getReplyId()).select(Comment::getId);
+            if (commentMapper.selectOne(replyQueryWrapper) == null) {
+                return Result.failed("回复的评论不存在");
+            }
+        }
+
+        // 参数校验 - 回复用户是否存在
+        if (commentParam.getReplyUserId() != null) {
+            LambdaQueryWrapper<UserInfo> userQueryWrapper = new LambdaQueryWrapper<>();
+            userQueryWrapper.eq(UserInfo::getId, commentParam.getReplyUserId()).select(UserInfo::getId);
+            if (userInfoMapper.selectOne(userQueryWrapper) == null) {
+                return Result.failed("回复的用户不存在");
+            }
+        }
+
+        // 参数校验 - @提及用户是否存在
+        String mentions = null;
+        if (commentParam.getMentionUserIds() != null && !commentParam.getMentionUserIds().isEmpty()) {
+            StringBuilder mentionsBuilder = new StringBuilder();
+            for (String mentionUserId : commentParam.getMentionUserIds()) {
+                Long mentionId = Long.parseLong(mentionUserId);
+                // 获取用户昵称
+                LambdaQueryWrapper<UserInfo> mentionQueryWrapper = new LambdaQueryWrapper<>();
+                mentionQueryWrapper.eq(UserInfo::getId, mentionId).select(UserInfo::getNickname);
+                UserInfo mentionedUserInfo = userInfoMapper.selectOne(mentionQueryWrapper);
+                if (mentionedUserInfo == null) {
+                    return Result.failed("提及的用户不存在");
+                }
+                if (mentionsBuilder.length() > 0) {
+                    mentionsBuilder.append(",");
+                }
+                mentionsBuilder.append(mentionedUserInfo.getNickname()).append(":").append(mentionId);
+            }
+            mentions = mentionsBuilder.toString();
+        }
+
+        // 创建评论
         Comment comment = new Comment()
                 .setVideoId(videoId)
                 .setParentId(parentId)
@@ -67,57 +129,32 @@ public class CommentServiceImpl implements CommentService {
             comment.setReplyUserId(commentParam.getReplyUserId());
         }
         
-        // 格式化@mentions
-        if (commentParam.getMentionUserIds() != null && !commentParam.getMentionUserIds().isEmpty()) {
-            StringBuilder mentions = new StringBuilder();
-            for (String mentionUserId : commentParam.getMentionUserIds()) {
-                Long mentionId = Long.parseLong(mentionUserId);
-                // 获取用户昵称
-                LambdaQueryWrapper<UserInfo> mentionQueryWrapper = new LambdaQueryWrapper<>();
-                mentionQueryWrapper.eq(UserInfo::getId, mentionId).select(UserInfo::getNickname);
-                UserInfo mentionedUserInfo = userInfoMapper.selectOne(mentionQueryWrapper);
-                if (mentionedUserInfo != null) {
-                    if (mentions.length() > 0) {
-                        mentions.append(",");
-                    }
-                    mentions.append(mentionedUserInfo.getNickname()).append(":").append(mentionId);
-                }
-            }
-            comment.setMentions(mentions.toString());
+        // 设置@mentions
+        if (mentions != null) {
+            comment.setMentions(mentions);
         }
         
         commentMapper.insert(comment);
 
         // 处理回复通知
         if (parentId != null) {
-            LambdaQueryWrapper<Comment> queryWrapper = new LambdaQueryWrapper<>();
-            queryWrapper.eq(Comment::getId, parentId).select(Comment::getUserId);
-            Comment parentComment = commentMapper.selectOne(queryWrapper);
-            if (parentComment == null) {
-                return Result.failed("父评论不存在");
-            }
-                    
             // 如果是回复二级评论，且回复的不是父评论作者，则也通知被回复的用户
             if (comment.getReplyId() != null && comment.getReplyUserId() != null 
-                    && !comment.getReplyUserId().equals(parentComment.getUserId())) {
+                    && !comment.getReplyUserId().equals(parentUserId)) {
                 internalMessageService.sendCommentMessage(comment.getReplyUserId(), parentId,
                         InternalMessageReceiverType.COMMENT,
                         comment.getId(), userId, content);
-            }
-            else{
+            } else {
                 // 发送站内信给父评论作者
-            internalMessageService.sendCommentMessage(parentComment.getUserId(), parentId,
-            InternalMessageReceiverType.COMMENT,
-            comment.getId(), userId, content);
+                internalMessageService.sendCommentMessage(parentUserId, parentId,
+                        InternalMessageReceiverType.COMMENT,
+                        comment.getId(), userId, content);
             }
         } else {
+            // 发送站内信给视频作者
             LambdaQueryWrapper<Video> queryWrapper = new LambdaQueryWrapper<>();
             queryWrapper.eq(Video::getId, videoId).select(Video::getUserId);
             Video video = videoMapper.selectOne(queryWrapper);
-            if (video == null) {
-                return Result.failed("视频不存在");
-            }
-            // 发送站内信给视频作者
             internalMessageService.sendCommentMessage(video.getUserId(), videoId,
                     InternalMessageReceiverType.VIDEO,
                     comment.getId(), userId, content);
@@ -141,7 +178,7 @@ public class CommentServiceImpl implements CommentService {
     @Transactional(rollbackFor = Exception.class)
     public Result likeComment(Long commentId, Long userId) {
         LambdaQueryWrapper<Comment> queryWrapper = new LambdaQueryWrapper<>();
-        queryWrapper.eq(Comment::getId, commentId);
+        queryWrapper.eq(Comment::getId, commentId).select(Comment::getId, Comment::getLikes, Comment::getUserId);
         Comment comment = commentMapper.selectOne(queryWrapper);
         if (comment == null) {
             return Result.failed("评论不存在");
